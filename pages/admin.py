@@ -6,10 +6,11 @@ import datetime
 import random
 from Fonction import *
 from Authentification import *
+from Home import etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presences_df, fiches_paie_df,statut_df
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Interface Admin - STATO-SPHERE PREPAS",
+    page_title="Admin - STATO-SPHERE PREPAS",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -308,14 +309,8 @@ def main():
         
         
         
-        # Statistiques globales
-        etudiants_df = read_from_excel("Étudiants")
-        enseignants_df = read_from_excel("Enseignants")
-        seances_df = read_from_excel("Séances")
-        depenses_df = read_from_excel("Dépenses")
-        versements_df = read_from_excel("Versements")
-        ventes_df = read_from_excel("Ventes_Bords")
-        statut = read_from_excel("Statuts")
+        
+        
         
         
         # Interface à onglets
@@ -323,7 +318,7 @@ def main():
             "👨‍🏫 Enseignants", "👥 Étudiants", "💸 Dépenses", "💰 Versements", 
             "📚 Ventes", "📋 Présences", "💵 Fiches de Paie","Données"
         ])
-        
+    
         # ==================== ONGLET ENSEIGNANTS ====================
         with tab1:
             st.markdown("## 👨‍🏫 Gestion des Enseignants")
@@ -359,7 +354,7 @@ def main():
                                 ", ".join(matiere_ens), telephone_ens, statut_ens
                             ]
                             
-                            if save_to_excel("Enseignants", data):
+                            if save_to_google_sheet("Enseignants", data):
                                 #=====Génération des identifiants de l'enseignant
                                 users = load_users()
         
@@ -406,7 +401,7 @@ def main():
             
             with col2:
                 st.markdown("#### Honnoraires suivant les statuts")
-                st.dataframe(statut,hide_index=True)
+                st.dataframe(statut_df,hide_index=True)
             # Liste des enseignants
             if not enseignants_df.empty:
                 st.markdown("---")
@@ -465,7 +460,7 @@ def main():
                                 telephone, date_arrivee.strftime('%Y-%m-%d'), etablissement, centre
                             ]
                             
-                            if save_to_excel("Étudiants", data):
+                            if save_to_google_sheet("Étudiants", data):
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Étudiant enregistré avec succès !</strong><br>
@@ -523,8 +518,8 @@ def main():
                     student = st.session_state['selected_student']
                     
                     # Calcul des statistiques de l'étudiant
-                    presences_df = read_from_excel("Présences")
-                    stats = calculate_student_stats(student['Matricule'], versements_df, presences_df, read_from_excel("Séances"))
+                    #presences_df = read_from_google_sheet("Présences")
+                    stats = calculate_student_stats(student['Matricule'], versements_df, presences_df, seances_df)
                     
                     st.markdown("---")
                     st.markdown(f"""
@@ -550,10 +545,10 @@ def main():
                     with col2:
                         st.markdown("#### 🎓 Concours Préparés")
                         st.write(f"**Principal:** {student['Concours1']}")
-                        if student.get('Concours2'):
-                            st.write(f"**Secondaire:** {student['Concours2']}")
-                        if student.get('Concours3'):
-                            st.write(f"**Tertiaire:** {student['Concours3']}")
+                        #if student.get('Concours2'):
+                            #st.write(f"**Secondaire:** {student['Concours2']}")
+                        #if student.get('Concours3'):
+                            #st.write(f"**Tertiaire:** {student['Concours3']}")
                         
                         st.markdown("#### 💰 Finances")
                         st.write(f"**Total versé:** {stats['total_verse']:,.0f} FCFA")
@@ -611,7 +606,7 @@ def main():
                             centre_responsable, centre_beneficiaire, montant
                         ]
                         
-                        if save_to_excel("Dépenses", data):
+                        if save_to_google_sheet("Dépenses", data):
                             st.success(f"✅ Dépense de {montant:,} FCFA enregistrée")
                         else:
                             st.error("❌ Erreur lors de l'enregistrement")
@@ -654,7 +649,7 @@ def main():
                             montant_versement, centre_versement, matricule_etudiant
                         ]
                         
-                        if save_to_excel("Versements", data):
+                        if save_to_google_sheet("Versements", data):
                             st.success(f"✅ Versement de {montant_versement:,} FCFA enregistré")
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -690,7 +685,7 @@ def main():
                             nombre_bords, montant_vente, centre_vente, date_vente.strftime('%Y-%m-%d')
                         ]
                         
-                        if save_to_excel("Ventes_Bords", data):
+                        if save_to_google_sheet("Ventes_Bords", data):
                             st.success(f"✅ Vente de {montant_vente:,} FCFA enregistrée")
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -759,7 +754,7 @@ def main():
                     
                     # Filtrer par concours (OR entre les concours sélectionnés)
                     etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['Concours2'].isin(concours_appel)) | (etudiants_filtres['Concours3'].isin(concours_appel))]
-                    
+                    etudiants_filtres=etudiants_filtres.sort_values(by=["Nom","Prénom"])
                     # Affichage du résumé
                     st.markdown("---")
                     st.markdown("### 📊 Résumé de l'Appel")
@@ -822,7 +817,7 @@ def main():
                 
                 # Barre de progression
                 progress = current_index / total_students if total_students > 0 else 0
-                st.progress(progress, text=f"Étudiant {current_index + 1} sur {total_students}")
+                st.progress(progress, text=f"Étudiant {current_index} sur {total_students}")
                 
                 if current_index < total_students:
                     # Affichage des 3 étudiants (précédent, actuel, suivant)
@@ -938,7 +933,7 @@ def main():
                     
                     with col_save:
                         if st.button("💾 Enregistrer les Présences", type="primary", use_container_width=True):
-                            presences_df = read_from_excel("Présences")
+                            #presences_df = read_from_google_sheet("Présences")
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
@@ -951,7 +946,7 @@ def main():
                                     1  # idEnseignant par défaut (à améliorer)
                                 ]
                                 
-                                if save_to_excel("Présences", data):
+                                if save_to_google_sheet("Présences", data):
                                     success_count += 1
                             
                             if success_count > 0:
@@ -1175,7 +1170,7 @@ def main():
                         # Sauvegarde dans Excel (votre code existant)
                         if payroll_data:
                             for pay in payroll_data:
-                                fiches_paie_df = read_from_excel("Fiches_Paie")
+                                #fiches_paie_df = read_from_google_sheet("Fiches_Paie")
                                 id_fiche = len(fiches_paie_df) + 1
                                 
                                 data = [
@@ -1186,7 +1181,7 @@ def main():
                                     datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                                 ]
                                 
-                                save_to_excel("Fiches_Paie", data)
+                                save_to_google_sheet("Fiches_Paie", data)
                             
                             # Résumé total
                             total_net = sum(pay["salaire_net"] for pay in payroll_data)
@@ -1222,10 +1217,11 @@ def main():
                 "Choisir la table à afficher",
                 ["Étudiants", "Dépenses", "Versements", "Ventes_Bords", "Présences"]
             )
-            
+            display_tab={"Étudiants":etudiants_df,"Dépenses":depenses_df,"Versements":versements_df,"Ventes_Bords":ventes_df,"Présences":presences_df}
             # Affichage des données
-            df_to_show = read_from_excel(table_choice)
-            
+            #df_to_show = read_from_google_sheet(table_choice)
+            df_to_show = display_tab.get(table_choice)
+
             if not df_to_show.empty:
                 st.markdown(f"### 📋 Table: {table_choice}")
                 st.markdown(f"**Nombre d'enregistrements:** {len(df_to_show)}")
@@ -1239,12 +1235,12 @@ def main():
                 
                 with col1:
                     if show_all:
-                        st.dataframe(df_to_show.head(max_rows), use_container_width=True)
+                        st.dataframe(df_to_show.head(max_rows), use_container_width=True, hide_index=True)
                     else:
                         # Afficher seulement les premières colonnes importantes
                         cols_to_show = df_to_show.columns[:5]
-                        st.dataframe(df_to_show[cols_to_show].head(max_rows), use_container_width=True)
-                
+                        st.dataframe(df_to_show[cols_to_show].head(max_rows), use_container_width=True, hide_index=True)
+
                 # Bouton de téléchargement
                 csv = df_to_show.to_csv(index=False)
                 st.download_button(
@@ -1265,6 +1261,8 @@ def main():
                 st.info(f"📊 Fichier: `{EXCEL_FILE}` | Taille: {file_size:.1f} KB")
             else:
                 st.warning("Le fichier de données n'existe pas encore. Il sera créé lors du premier enregistrement.")
-
+        #Enregistrement des données de connexion 
+        data_connection=[user,'Administrateur', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
+        save_to_google_sheet("Connexion", data_connection)
 if __name__ == "__main__":
     main()

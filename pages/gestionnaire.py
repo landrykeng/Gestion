@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
-import os
-import uuid
 from pathlib import Path
 import openpyxl
 from openpyxl import Workbook
@@ -10,10 +8,11 @@ from Authentification import *
 from Fonction import *
 import base64
 from io import BytesIO
+from Home import etudiants_df, enseignants_df, depenses_df, versements_df, ventes_df, presences_df, Connect_df
 
 
 st.set_page_config(
-    page_title="Interface Gestionnaire - STATO-SPHERE PREPAS",
+    page_title="Gestionnaire - STATO-SPHERE PREPAS",
     page_icon="🧑‍💻",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -212,13 +211,13 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
         
         # Calcul des statistiques
-        etudiants_df = read_from_excel("Étudiants")
-        enseignants_df = read_from_excel("Enseignants")
-        depenses_df = read_from_excel("Dépenses")
-        versements_df = read_from_excel("Versements")
-        ventes_df = read_from_excel("Ventes_Bords")
-        
-        
+        #etudiants_df = read_from_google_sheet("Étudiants")
+        #enseignants_df = read_from_google_sheet("Enseignants")
+        #depenses_df = read_from_google_sheet("Dépenses")
+        #versements_df = read_from_google_sheet("Versements")
+        #ventes_df = read_from_google_sheet("Ventes_Bords")
+
+
         # Interface à onglets
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "👥 Étudiants", "💸 Dépenses", "💰 Versements", 
@@ -267,7 +266,7 @@ def main():
                                 telephone, date_arrivee.strftime('%Y-%m-%d'), etablissement, centre
                             ]
                             
-                            if save_to_excel("Étudiants", data):
+                            if save_to_google_sheet("Étudiants", data):
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Étudiant enregistré avec succès !</strong><br>
@@ -322,8 +321,8 @@ def main():
                     student = st.session_state['selected_student']
                     
                     # Calcul des statistiques de l'étudiant
-                    presences_df = read_from_excel("Présences")
-                    stats = calculate_student_stats(student['Matricule'], versements_df, presences_df, read_from_excel("Séances"))
+                    #presences_df = read_from_google_sheet("Présences")
+                    stats = calculate_student_stats(student['Matricule'], versements_df, presences_df, read_from_google_sheet("Séances"))
                     
                     st.markdown("---")
                     st.markdown(f"""
@@ -349,10 +348,10 @@ def main():
                     with col2:
                         st.markdown("#### 🎓 Concours Préparés")
                         st.write(f"**Principal:** {student['Concours1']}")
-                        if student.get('Concours2'):
-                            st.write(f"**Secondaire:** {student['Concours2']}")
-                        if student.get('Concours3'):
-                            st.write(f"**Tertiaire:** {student['Concours3']}")
+                        #if student.get('Concours2'):
+                            #st.write(f"**Secondaire:** {student['Concours2']}")
+                        #if student.get('Concours3'):
+                            #st.write(f"**Tertiaire:** {student['Concours3']}")
                         
                         st.markdown("#### 💰 Finances")
                         st.write(f"**Total versé:** {stats['total_verse']:,.0f} FCFA")
@@ -411,7 +410,7 @@ def main():
                                 centre_responsable, centre_beneficiaire, montant
                             ]
                             
-                            if save_to_excel("Dépenses", data):
+                            if save_to_google_sheet("Dépenses", data):
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Dépense enregistrée avec succès !</strong><br>
@@ -434,13 +433,7 @@ def main():
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col2:
-                st.markdown("### 📈 Dépenses par Type")
-                if not depenses_df.empty and 'Type' in depenses_df.columns:
-                    type_depenses = depenses_df.groupby('Type')['Montant'].sum().sort_values(ascending=False)
-                    for type_dep, montant in type_depenses.items():
-                        st.metric(f"💰 {type_dep}", f"{montant:,.0f} FCFA")
-                else:
-                    st.info("Aucune dépense enregistrée")
+                pass
         
         # ====================== ONGLET VERSEMENTS ======================
         with tab3:
@@ -484,7 +477,7 @@ def main():
                                 montant_versement, centre_versement, matricule_etudiant
                             ]
                             
-                            if save_to_excel("Versements", data):
+                            if save_to_google_sheet("Versements", data):
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Versement enregistré avec succès !</strong><br>
@@ -539,13 +532,7 @@ def main():
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col2:
-                st.markdown("### 📊 Versements par Centre")
-                if not versements_df.empty and 'Centre' in versements_df.columns:
-                    centre_versements = versements_df.groupby('Centre')['Montant'].sum()
-                    for centre, montant in centre_versements.items():
-                        st.metric(f"📍 {centre}", f"{montant:,.0f} FCFA")
-                else:
-                    st.info("Aucun versement enregistré")
+                pass
         
         # ====================== ONGLET VENTES BORDS ======================
         with tab4:
@@ -583,7 +570,7 @@ def main():
                                 nombre_bords, montant_vente, centre_vente, date_vente.strftime('%Y-%m-%d')
                             ]
                             
-                            if save_to_excel("Ventes_Bords", data):
+                            if save_to_google_sheet("Ventes_Bords", data):
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Vente enregistrée avec succès !</strong><br>
@@ -610,7 +597,7 @@ def main():
                 if not ventes_df.empty and 'Bord' in ventes_df.columns:
                     bord_ventes = ventes_df.groupby('Bord')['Montant'].sum().sort_values(ascending=False)
                     for bord, montant in bord_ventes.items():
-                        st.metric(f"📚 {bord}", f"{montant:,.0f} FCFA")
+                        st.metric(f"📚 {bord}", f"{montant} FCFA")
                 else:
                     st.info("Aucune vente enregistrée")
         
@@ -676,7 +663,7 @@ def main():
                     
                     # Filtrer par concours (OR entre les concours sélectionnés)
                     etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['Concours2'].isin(concours_appel)) | (etudiants_filtres['Concours3'].isin(concours_appel))]
-                    
+                    etudiants_filtres=etudiants_filtres.sort_values(by=["Nom","Prénom"])
                     # Affichage du résumé
                     st.markdown("---")
                     st.markdown("### 📊 Résumé de l'Appel")
@@ -739,7 +726,7 @@ def main():
                 
                 # Barre de progression
                 progress = current_index / total_students if total_students > 0 else 0
-                st.progress(progress, text=f"Étudiant {current_index + 1} sur {total_students}")
+                st.progress(progress, text=f"Étudiant {current_index} sur {total_students}")
                 
                 if current_index < total_students:
                     # Affichage des 3 étudiants (précédent, actuel, suivant)
@@ -855,7 +842,7 @@ def main():
                     
                     with col_save:
                         if st.button("💾 Enregistrer les Présences", type="primary", use_container_width=True):
-                            presences_df = read_from_excel("Présences")
+                            #presences_df = read_from_google_sheet("Présences")
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
@@ -868,7 +855,7 @@ def main():
                                     1  # idEnseignant par défaut (à améliorer)
                                 ]
                                 
-                                if save_to_excel("Présences", data):
+                                if save_to_google_sheet("Présences", data):
                                     success_count += 1
                             
                             if success_count > 0:
@@ -911,7 +898,7 @@ def main():
                 min_absences = st.number_input("🎯 Minimum d'absences", min_value=1, max_value=10, value=2, key="min_abs")
             
             if st.button("📊 Analyser l'Absentéisme", type="primary"):
-                presences_df = read_from_excel("Présences")
+                #presences_df = read_from_google_sheet("Présences")
                 absent_students = get_absent_students(start_date_abs, end_date_abs, min_absences, presences_df, etudiants_df)
                 
                 if not absent_students.empty:
@@ -947,6 +934,8 @@ def main():
             st.markdown('</div>', unsafe_allow_html=True)
         
         # ====================== ONGLET DONNÉES ======================
-       
+        #Enregistrement des données de connexion 
+        data_connection=[user,'Gestionnaire', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
+        save_to_google_sheet("Connexion", data_connection)
 if __name__ == "__main__":
     main()

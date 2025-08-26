@@ -1,13 +1,194 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date, time
+#import time
 import os
 import uuid
 from pathlib import Path
 import openpyxl
 from openpyxl import Workbook
 import base64
+import gspread
+from google.oauth2.service_account import Credentials
+from functools import lru_cache
 
+
+# Configuration Google Sheets
+SERVICE_ACCOUNT_FILE = "Credential.json"
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+SHEET_NAME = "Data_Gestion"  # Nom de votre Google Sheet
+
+# Variables globales pour la mise en cache
+_client = None
+_sheet = None
+_last_connection = 0
+CONNECTION_TIMEOUT = 300  # 5 minutes
+
+@lru_cache(maxsize=1)
+def get_credentials():
+    """Cache les credentials pour éviter de les recharger"""
+    try:
+        return Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    except Exception as e:
+        st.error(f"Erreur credentials : {e}")
+        return None
+
+def get_google_sheets_client():
+    """Client Google Sheets avec cache et réutilisation de connexion"""
+    global _client, _last_connection
+    
+    current_time=int(datetime.now().timestamp())
+    
+    # Réutiliser le client existant s'il est encore valide
+    if _client and (current_time - _last_connection) < CONNECTION_TIMEOUT:
+        return _client
+    
+    try:
+        creds = get_credentials()
+        if not creds:
+            return None
+            
+        _client = gspread.authorize(creds)
+        _last_connection = current_time
+        return _client
+        
+    except Exception as e:
+        st.error(f"Erreur connexion : {e}")
+        _client = None
+        return None
+
+def get_google_sheet():
+    """Sheet Google Sheets avec cache"""
+    global _sheet
+    
+    if _sheet:
+        return _sheet
+    
+    try:
+        client = get_google_sheets_client()
+        if not client:
+            return None
+            
+        _sheet = client.open(SHEET_NAME)
+        return _sheet
+        
+    except gspread.SpreadsheetNotFound:
+        st.error(f"Google Sheet '{SHEET_NAME}' introuvable")
+        return None
+    except Exception as e:
+        st.error(f"Erreur ouverture sheet : {e}")
+        return None
+
+def get_worksheet(sheet_name):
+    """Récupère un onglet avec gestion d'erreur optimisée"""
+    try:
+        sheet = get_google_sheet()
+        if not sheet:
+            return None
+        return sheet.worksheet(sheet_name)
+    except gspread.WorksheetNotFound:
+        st.warning(f"Onglet '{sheet_name}' introuvable")
+        return None
+    except Exception as e:
+        st.error(f"Erreur onglet '{sheet_name}' : {e}")
+        return None
+
+def batch_init_google_sheet():
+    """Initialise tous les onglets en une seule fois (plus rapide)"""
+    try:
+        sheet = get_google_sheet()
+        if not sheet:
+            return False
+        
+        existing_worksheets = {ws.title: ws for ws in sheet.worksheets()}
+        
+        # Configuration des onglets à créer
+        sheets_config = {
+            "Séances": ["ID", "Date", "Matière", "HeureArrivée", "HeureDepart", 
+                       "Classe", "IntituléCours", "Centre", "idEnseignant", "NombreEtudiants"],
+            "Étudiants": ["Matricule", "Nom", "Prénom", "Sexe", "Concours1", "Concours2", 
+                         "Concours3", "Téléphone", "DateArrivée", "Etablissement", "Centre"]
+        }
+        
+        # Créer tous les onglets manquants en une fois
+        for sheet_name, headers in sheets_config.items():
+            if sheet_name not in existing_worksheets:
+                worksheet = sheet.add_worksheet(title=sheet_name, rows="1000", cols="20")
+                worksheet.append_row(headers)
+                st.success(f"Onglet '{sheet_name}' créé")
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Erreur initialisation : {e}")
+        return False
+
+def save_to_google_sheet(sheet_name, data):
+    """Version optimisée pour sauvegarder"""
+    try:
+        worksheet = get_worksheet(sheet_name)
+        if not worksheet:
+            # Tentative de création si onglet inexistant
+            if batch_init_google_sheet():
+                worksheet = get_worksheet(sheet_name)
+            if not worksheet:
+                return False
+        
+        # Optimisation selon le type de données
+        if isinstance(data, list):
+            worksheet.append_row(data)
+        elif isinstance(data, pd.DataFrame) and not data.empty:
+            # Utiliser batch update pour les gros volumes
+            values = data.values.tolist()
+            if len(values) > 10:  # Batch pour plus de 10 lignes
+                worksheet.append_rows(values, value_input_option='USER_ENTERED')
+            else:
+                for row in values:
+                    worksheet.append_row(row)
+        else:
+            st.warning("Données vides ou format non supporté")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Erreur sauvegarde '{sheet_name}' : {e}")
+        return False
+
+def read_from_google_sheet(sheet_name, use_cache=True):
+    """Version optimisée pour lire avec cache optionnel"""
+    try:
+        worksheet = get_worksheet(sheet_name)
+        if not worksheet:
+            return pd.DataFrame()
+        
+        # Récupération optimisée
+        if use_cache:
+            # Utiliser get_all_values() qui est plus rapide que get_all_records()
+            values = worksheet.get_all_values()
+            if not values or len(values) < 2:
+                return pd.DataFrame()
+            
+            # Créer DataFrame manuellement (plus rapide)
+            headers = values[0]
+            data = values[1:]
+            df = pd.DataFrame(data, columns=headers)
+            
+            # Nettoyer les lignes vides
+            df = df.replace('', pd.NA).dropna(how='all')
+        else:
+            # Méthode classique pour les cas où on veut les types automatiques
+            data = worksheet.get_all_records()
+            df = pd.DataFrame(data) if data else pd.DataFrame()
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"Erreur lecture '{sheet_name}' : {e}")
+        return pd.DataFrame()
 
 
 EXCEL_FILE = "stato_sphere_data.xlsx"
@@ -50,152 +231,55 @@ def add_bg_local(image_file):
             unsafe_allow_html=True
         )
 
-etudiants_df = read_from_excel("Étudiants")
-enseignants_df = read_from_excel("Enseignants")
-seances_df = read_from_excel("Séances")
-depenses_df = read_from_excel("Dépenses")
-versements_df = read_from_excel("Versements")
-ventes_df = read_from_excel("Ventes_Bords")
-statut = read_from_excel("Statuts")
+# Chargement des bases
+@st.cache_data
+def load_all_data():
+    etudiants_df = read_from_google_sheet("Étudiants")
+    enseignants_df = read_from_google_sheet("Enseignants")
+    seances_df = read_from_google_sheet("Séances")
+    depenses_df = read_from_google_sheet("Dépenses")
+    versements_df = read_from_google_sheet("Versements")
+    ventes_df = read_from_google_sheet("Ventes_Bords")
+    presence_df = read_from_google_sheet("Présences")
+    presences_df = read_from_google_sheet("Présences")
+    fiches_paie_df = read_from_google_sheet("Fiches_Paie")
+    statut_df=read_from_google_sheet("Statuts")
+    Connect_df=read_from_google_sheet("Connexion")
+
+    return etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df,statut_df, Connect_df
+SHEETS = {
+        "etudiant": "Étudiants",
+        "depense": "Dépenses", 
+        "versement": "Versements",
+        "bord": "Ventes_Bords",
+        "presence": "Présences",
+        "enseignant": "Enseignants",
+        "seance": "Séances",
+        "statut": "Statuts"
+    }
+CONCOURS_CHOICES = ["ISE LONG / AS", "ISE ECO", "ISE MATH", "IFORD B", "IFORD A", "TSS"]
+CENTRES_CHOICES = ["Douala", "Yaoundé", "Dschang"]
+SEXE_CHOICES = ["Homme", "Femme"]
+COURS_CHOICES = ["MATHEMATIQUES", "FRANCAIS", "CULTURE GENERALE", "ECONOMIE", "STATISTIQUES"]
+TYPE_DEPENSE_CHOICES = [
+        "Publicité", "Dépense de lancement", "Impressions des fiches", 
+        "Impressions des bords", "Motivations des associés", "Loyer", 
+        "Accessoires", "Salaire"
+    ]
+
+STATUT_ENSEIGNANT_CHOICES=["A+", "A", "A-","N","N-","N--"]
+ETABLISSEMENT=["Université Yde1","Université Yde2(SOA)","Université Dschang",
+                "Université Dla","Polytech Yde","Polytech Dla","Ecole Normale","Autre"]
+
 dict_honnoraire = {"A+":5000,
                    "A":4500,
                    "A-":4000,
                    "N":3500,
                    "N":3500,
                    "N--":2500}
-
-
-# CSS personnalisé
-st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(90deg, #2d5a27 0%, #4a8f42 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        text-align: center;
-        color: white;
-    }
     
-    .teacher-info {
-        background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-        padding: 1.5rem;
-        border-radius: 10px;
-        color: white;
-        margin-bottom: 2rem;
-        text-align: center;
-    }
-    
-    .form-container {
-        background: white;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-    }
-    
-    .success-box {
-        background: #d4edda;
-        color: #155724;
-        padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #c3e6cb;
-        margin: 1rem 0;
-    }
-    
-    .error-box {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #f5c6cb;
-        margin: 1rem 0;
-    }
-    
-    .info-box {
-        background: #d1ecf1;
-        color: #0c5460;
-        padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #bee5eb;
-        margin: 1rem 0;
-    }
-    
-    .stat-card {
-        background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-        padding: 1.5rem;
-        border-radius: 10px;
-        text-align: center;
-        color: white;
-        margin-bottom: 1rem;
-    }
-    
-    .login-container {
-        background: white;
-        padding: 3rem;
-        border-radius: 15px;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        max-width: 500px;
-        margin: 2rem auto;
-    }
-    
-    .seance-card {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #27ae60;
-        margin-bottom: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-#import_users_from_excel()
-
-      #=======================================================================
-        #================== Sélecteur de langue ================================
-
-# Configuration des fichiers Excel
 
 
-SHEETS = {
-    "etudiant": "Étudiants",
-    "depense": "Dépenses", 
-    "versement": "Versements",
-    "bord": "Ventes_Bords",
-    "presence": "Présences",
-    "enseignant": "Enseignants",
-    "seance": "Séances",
-    "statut": "Statuts"
-}
-
-
-# Listes de choix
-CONCOURS_CHOICES = ["ISE LONG / AS", "ISE ECO", "ISE MATH", "IFORD B", "IFORD A", "TSS"]
-CENTRES_CHOICES = ["Douala", "Yaoundé", "Dschang"]
-SEXE_CHOICES = ["Homme", "Femme"]
-COURS_CHOICES = ["MATHEMATIQUES", "FRANCAIS", "CULTURE GENERALE", "ECONOMIE", "STATISTIQUES"]
-TYPE_DEPENSE_CHOICES = [
-    "Publicité", "Dépense de lancement", "Impressions des fiches", 
-    "Impressions des bords", "Motivations des associés", "Loyer", 
-    "Accessoires", "Salaire"
-]
-
-STATUT_ENSEIGNANT_CHOICES=["A+", "A", "A-","N","N-","N--"]
-ETABLISSEMENT=["Université Yde1","Université Yde2(SOA)","Université Dschang",
-               "Université Dla","Polytech Yde","Polytech Dla","Ecole Normale","Autre"]
-
-BAREME_SALAIRES = {
-    "Permanent": 5000,
-    "Vacataire": 3500,
-    "Contractuel": 4000,
-    "Stagiaire": 2500
-}
-# Configuration admin
-ADMIN_CREDENTIALS = {
-    "admin": "admin2025",
-    "directeur": "dir2025",
-    "superuser": "super2025"
-}
 
 def init_excel_file():
     """Initialise le fichier Excel avec les feuilles nécessaires"""
@@ -460,10 +544,6 @@ def get_absent_students(start_date, end_date, min_absences, presences_df, etudia
     
     return result
 
-def authenticate_admin(username, password):
-    """Authentifie un administrateur"""
-    return username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == password
-
 def calculate_worked_hours(seances_df, teacher_ID, start_date, end_date):
     """Calcule les heures travaillées par un enseignant sur une période"""
     if seances_df.empty:
@@ -489,64 +569,6 @@ def calculate_worked_hours(seances_df, teacher_ID, start_date, end_date):
             total_hours += 2
     
     return round(total_hours, 2)
-
-def login_page():
-    """Page de connexion pour les administrateurs"""
-    st.markdown("""
-    <div class="main-header">
-        <h1>⚡ Interface Administrateur</h1>
-        <h3>STATO-SPHERE PREPAS</h3>
-        <p>Accès réservé aux administrateurs et responsables</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="login-container">', unsafe_allow_html=True)
-    st.markdown("### 🔐 Connexion Administrateur")
-    
-    with st.form("admin_login_form"):
-        username = st.text_input("👤 Nom d'utilisateur", placeholder="admin")
-        password = st.text_input("🔒 Mot de passe", type="password", placeholder="Mot de passe admin")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            login_submitted = st.form_submit_button("🚀 Se connecter", type="primary", use_container_width=True)
-        with col2:
-            demo_button = st.form_submit_button("👁️ Mode Démo", use_container_width=True)
-        
-        if login_submitted:
-            if username and password:
-                if authenticate_admin(username, password):
-                    st.session_state.admin_logged_in = True
-                    st.session_state.admin_username = username
-                    st.success(f"✅ Connexion réussie ! Bienvenue {username}")
-                    st.rerun()
-                else:
-                    st.error("❌ Identifiants incorrects")
-            else:
-                st.warning("⚠️ Veuillez remplir tous les champs")
-        
-        if demo_button:
-            st.session_state.admin_logged_in = True
-            st.session_state.admin_username = "admin"
-            st.success("🎭 Mode démo administrateur activé")
-            st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Aide à la connexion
-    st.markdown("---")
-    st.markdown("### 💡 Comptes administrateur")
-    st.markdown("""
-    **👑 Administrateur Principal**  
-    📧 Username: `admin` | 🔒 Password: `admin2025`
-    
-    **🎯 Directeur**  
-    📧 Username: `directeur` | 🔒 Password: `dir2025`
-    
-    **🔧 Super Utilisateur**  
-    📧 Username: `superuser` | 🔒 Password: `super2025`
-    """)
-
 
 
 def set_language():

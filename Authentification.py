@@ -247,10 +247,3 @@ def authentication_system(required_status=None):
         logo2=Image.open("logo2.png")
         st.image(logo2,width=200)
 # Exemple d'utilisation
-if __name__ == "__main__":
-    st.title("Test du système d'authentification")
-    
-    # Pour accéder à cette page, l'utilisateur doit avoir le statut "Enquêteur"
-    if authentication_system(required_status="Administrateur"):
-        st.header("Contenu réservé aux enquêteurs")
-        st.write("Si vous voyez ceci, vous êtes connecté en tant qu'enquêteur!")

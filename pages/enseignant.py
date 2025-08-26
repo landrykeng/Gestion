@@ -1,19 +1,16 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date, time
-import os
-import uuid
-from pathlib import Path
-import openpyxl
 from openpyxl import Workbook
 from Authentification import *
 from Fonction import *
+from Home import etudiants_df, enseignants_df, seances_df, presences_df, Connect_df
 import io
 
 #import_users_from_excel()
 # Configuration de la page 
 st.set_page_config(
-    page_title="Interface Enseignant - STATO-SPHERE PREPAS",
+    page_title="Enseignant - STATO-SPHERE PREPAS",
     page_icon="👨‍🏫",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -26,13 +23,14 @@ def main():
     is_authenticated = authentication_system("Enseignant")
     if is_authenticated:
         user = st.session_state['username']
+        
         df_ens=enseignants_df[["Nom","ID","Matière"]]
         dict_ens=df_ens.set_index("Nom").to_dict()
         teacher_id=dict_ens.get("ID")[user]
         teacher_lesson=dict_ens.get("Matière")[user]
         teacher_info = get_teacher_info(user)
         
-        seances_df = read_from_excel("Séances")
+        #seances_df = read_from_google_sheet("Séances")
         teacher_seances = seances_df[seances_df['idEnseignant'] == teacher_id]
         
         
@@ -77,7 +75,7 @@ def main():
         
         #chargement des données
         
-        etudiants_df = read_from_excel("Étudiants")
+        #etudiants_df = read_from_google_sheet("Étudiants")
         
         
         # ============== INTERFACE PRINCIPALE ==============
@@ -169,6 +167,7 @@ def main():
                     # Filtrer par concours (OR entre les concours sélectionnés)
                     etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['Concours2'].isin(concours_appel)) | (etudiants_filtres['Concours3'].isin(concours_appel))]
                     
+                    etudiants_filtres=etudiants_filtres.sort_values(by=["Nom","Prénom"])
                     # Affichage du résumé
                     st.markdown("---")
                     st.markdown("### 📊 Résumé de l'Appel")
@@ -231,7 +230,7 @@ def main():
                 
                 # Barre de progression
                 progress = current_index / total_students if total_students > 0 else 0
-                st.progress(progress, text=f"Étudiant {current_index + 1} sur {total_students}")
+                st.progress(progress, text=f"Étudiant {current_index } sur {total_students}")
                 
                 if current_index < total_students:
                     # Affichage des 3 étudiants (précédent, actuel, suivant)
@@ -342,7 +341,7 @@ def main():
                     
                     with col_save:
                         if st.button("💾 Enregistrer les Présences", type="primary", use_container_width=True):
-                            presences_df = read_from_excel("Présences")
+                            #presences_df = read_from_google_sheet("Présences")
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
@@ -355,7 +354,7 @@ def main():
                                     teacher_id  # idEnseignant 
                                 ]
                                 
-                                if save_to_excel("Présences", data):
+                                if save_to_google_sheet("Présences", data):
                                     success_count += 1
                             
                             if success_count > 0:
@@ -436,7 +435,7 @@ def main():
                             """, unsafe_allow_html=True)
                         else:
                             # Génération de l'ID
-                            seances_df = read_from_excel("Séances")
+                            #seances_df = read_from_google_sheet("Séances")
                             id_seance = len(seances_df) + 1
                             Vclasse=", ".join(classe)
                             data = [
@@ -452,7 +451,7 @@ def main():
                                 nombre_etudiants
                             ]
                             
-                            if save_to_excel("Séances", data):
+                            if save_to_google_sheet("Séances", data):
                                 # Calcul de la durée
                                 duree_minutes = (datetime.combine(date.today(), heure_depart) - 
                                                datetime.combine(date.today(), heure_arrivee)).seconds // 60
@@ -556,7 +555,7 @@ def main():
                                    datetime.combine(date.today(), heure_a)).seconds // 60
                             durees.append(f"{duree//60}h{duree%60:02d}")
                         except:
-                            durees.append("N/A")
+                            durees.append("")
                     
                     display_df['Durée'] = durees
                     display_df['Date'] = display_df['Date'].dt.strftime('%d/%m/%Y')
@@ -579,9 +578,9 @@ def main():
                     
                     st.dataframe(display_df, use_container_width=True, hide_index=True)
                     
+                    filtered_seances = filtered_seances.fillna("")
                     # Export des données
                     st.markdown("---")
-                    csv = filtered_seances.to_csv(index=False)
                     # Préparation du fichier Excel en mémoire
                     output = io.BytesIO()
                     wb = Workbook()
@@ -593,7 +592,7 @@ def main():
 
                     # Ajout des données
                     for row in filtered_seances.itertuples(index=False):
-                        ws.append(list(row))
+                        ws.append(row)
 
                     wb.save(output)
                     output.seek(0)
@@ -651,7 +650,7 @@ def main():
                             telephone, date_arrivee.strftime('%Y-%m-%d'), etablissement, centre
                         ]
                         
-                        if save_to_excel("Étudiants", data):
+                        if save_to_google_sheet("Étudiants", data):
                             st.markdown(f"""
                             <div class="success-box">
                                 ✅ <strong>Étudiant enregistré avec succès !</strong><br>
@@ -676,7 +675,9 @@ def main():
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
+        #Enregistrement des données de connexion 
+        data_connection=[user,'Enseignant', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
+        save_to_google_sheet("Connexion", data_connection)   
 if __name__ == "__main__":
     main()     
 

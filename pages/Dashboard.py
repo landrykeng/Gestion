@@ -1,20 +1,11 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime, date, time, timedelta
-import os
-import datetime
-import uuid
-from pathlib import Path
-import openpyxl
-from openpyxl import Workbook
-import base64
-from io import BytesIO
 from Fonction import *
 from Authentification import *
+from Home import etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Interface Admin - STATO-SPHERE PREPAS",
+    page_title="Admin - STATO-SPHERE PREPAS",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -311,14 +302,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        # Chargement des bases
-        etudiants_df = read_from_excel("Étudiants")
-        enseignants_df = read_from_excel("Enseignants")
-        seances_df = read_from_excel("Séances")
-        depenses_df = read_from_excel("Dépenses")
-        versements_df = read_from_excel("Versements")
-        ventes_df = read_from_excel("Ventes_Bords")
-        presence_df=read_from_excel("Présences")
+        
         
         
         tab= st.tabs([
@@ -332,6 +316,7 @@ def main():
             # ====================== ONGLET ACCUEIL ======================
         with tab[0]:
                 st.markdown("## <div class=\"form-container\"> 🏠 Bienvenue sur le Tableau de Bord Administrateur</div>", unsafe_allow_html=True)
+                Connect_df
         with tab[1]:
             st.markdown("## <div class=\"form-container\"> 💰 Gestion Financière</div>", unsafe_allow_html=True)
             st.dataframe(versements_df)
@@ -347,6 +332,9 @@ def main():
         with tab[4]:
             st.markdown("## <div class=\"form-container\"> 📋 Gestion des Présences</div>", unsafe_allow_html=True)
             st.dataframe(presence_df)
-        
+    
+        #Enregistrement des données de connexion 
+        data_connection=[user,'Administrateur', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
+        save_to_google_sheet("Connexion", data_connection)  
 if __name__ == "__main__":
     main()
