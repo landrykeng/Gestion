@@ -24,6 +24,13 @@ def main():
     if is_authenticated:
         user = st.session_state['username']
         
+        
+        #boutton de mise à jour
+        refresh=st.sidebar.button("Actualiser")
+        if refresh:
+            etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
+
+        
         df_ens=enseignants_df[["Nom","ID","Matière"]]
         dict_ens=df_ens.set_index("Nom").to_dict()
         teacher_id=dict_ens.get("ID")[user]

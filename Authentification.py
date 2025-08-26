@@ -109,7 +109,7 @@ def authentication_system(required_status=None):
             # Vérifier si l'utilisateur a le statut requis
             if required_status and st.session_state["status"] != required_status:
                 st.error(f"Accès refusé. Vous avez besoin du statut '{required_status}' pour accéder à cette page.")
-                if st.sidebar.button("Déconnexion"):
+                if st.sidebar.button("🚪 Déconnexion"):
                     st.session_state["authenticated"] = False
                     st.session_state["username"] = None
                     st.session_state["status"] = None

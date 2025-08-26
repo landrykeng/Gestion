@@ -190,11 +190,12 @@ def main():
         st.sidebar.title("Interface Gestionnaire")
         st.sidebar.write(f"Bienvenue, {user}!")
         
-        # Bouton de déconnexion dans la sidebar
-        if st.sidebar.button("🚪 Se déconnecter", type="secondary", use_container_width=True):
-            st.session_state['authenticated'] = False
-            st.session_state['username'] = None
-            st.rerun()
+        
+        #boutton de mise à jour
+        refresh=st.sidebar.button("Actualiser")
+        if refresh:
+            etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
+
         
         # ============== INTERFACE PRINCIPALE ==============
         

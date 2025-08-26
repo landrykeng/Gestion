@@ -303,7 +303,11 @@ def main():
             """, unsafe_allow_html=True)
         
         
-        
+        #boutton de mise à jour
+        refresh=st.sidebar.button("Actualiser")
+        if refresh:
+            etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
+
         
         tab= st.tabs([
                 "🏠 Accueil",
