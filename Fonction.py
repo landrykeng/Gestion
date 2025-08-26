@@ -14,11 +14,7 @@ from functools import lru_cache
 import json
 
 
-mon_dictionnaire=st.secrets["gcp_service_account"]
-with open("Credential.json", "w", encoding="utf-8") as f:
-    json.dump(mon_dictionnaire, f, ensure_ascii=False, indent=4)
-# Configuration Google Sheets
-SERVICE_ACCOUNT_FILE = "Credential.json"
+SERVICE_ACCOUNT_FILE = st.secrets["gcp_service_account"]
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -35,7 +31,8 @@ CONNECTION_TIMEOUT = 300  # 5 minutes
 def get_credentials():
     """Cache les credentials pour éviter de les recharger"""
     try:
-        return Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        # SERVICE_ACCOUNT_FILE est ici un dictionnaire contenant les credentials
+        return Credentials.from_service_account_info(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     except Exception as e:
         st.error(f"Erreur credentials : {e}")
         return None
