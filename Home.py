@@ -9,8 +9,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-dtu=st.secrets["gcp_service_account"]
-dtu
+
 
 etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
 
@@ -22,7 +21,7 @@ etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df,
 
 #depenses_df["Date"]=pd.to_datetime(depenses_df['Date']).dt.date
 #depenses_df['Date'] = depenses_df['Date'].dt.strftime('%Y-%m-%d')
-etudiants_df
+#etudiants_df
 versements_df["Montant"]=versements_df["Montant"].astype(int)
 
 # CSS personnalisé pour un design moderne
