@@ -9,6 +9,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+dtu=st.secrets["gcp_service_account"]
+dtu
 
 etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
 
