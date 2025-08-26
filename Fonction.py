@@ -29,9 +29,11 @@ CONNECTION_TIMEOUT = 300  # 5 minutes
 
 @lru_cache(maxsize=1)
 def get_credentials():
-    """Cache les credentials pour éviter de les recharger"""
+    """Charge les credentials depuis Streamlit Secrets"""
     try:
-        return Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        return Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"], scopes=SCOPES
+        )
     except Exception as e:
         st.error(f"Erreur credentials : {e}")
         return None
