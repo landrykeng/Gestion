@@ -11,8 +11,12 @@ import base64
 import gspread
 from google.oauth2.service_account import Credentials
 from functools import lru_cache
+import json
 
 
+mon_dictionnaire=st.secrets["gcp_service_account"]
+with open("Credential.json", "w", encoding="utf-8") as f:
+    json.dump(mon_dictionnaire, f, ensure_ascii=False, indent=4)
 # Configuration Google Sheets
 SERVICE_ACCOUNT_FILE = "Credential.json"
 SCOPES = [
@@ -29,11 +33,9 @@ CONNECTION_TIMEOUT = 300  # 5 minutes
 
 @lru_cache(maxsize=1)
 def get_credentials():
-    """Charge les credentials depuis Streamlit Secrets"""
+    """Cache les credentials pour éviter de les recharger"""
     try:
-        return Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"], scopes=SCOPES
-        )
+        return Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     except Exception as e:
         st.error(f"Erreur credentials : {e}")
         return None
