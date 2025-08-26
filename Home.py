@@ -12,13 +12,13 @@ st.set_page_config(
 
 etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
 
-etudiants_df["DateArrivée"]=pd.to_datetime(etudiants_df['DateArrivée']).dt.date
+#etudiants_df["DateArrivée"]=pd.to_datetime(etudiants_df['DateArrivée']).dt.date
 #etudiants_df['DateArrivée'] = etudiants_df['DateArrivée'].dt.strftime('%Y-%m-%d')
 
-versements_df["Date"]=pd.to_datetime(versements_df['Date']).dt.date
+#versements_df["Date"]=pd.to_datetime(versements_df['Date']).dt.date
 #versements_df['Date'] = versements_df['Date'].dt.strftime('%Y-%m-%d')
 
-depenses_df["Date"]=pd.to_datetime(depenses_df['Date']).dt.date
+#depenses_df["Date"]=pd.to_datetime(depenses_df['Date']).dt.date
 #depenses_df['Date'] = depenses_df['Date'].dt.strftime('%Y-%m-%d')
 
 versements_df["Montant"]=versements_df["Montant"].astype(int)
