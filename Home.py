@@ -20,7 +20,7 @@ etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df,
 
 #depenses_df["Date"]=pd.to_datetime(depenses_df['Date']).dt.date
 #depenses_df['Date'] = depenses_df['Date'].dt.strftime('%Y-%m-%d')
-
+etudiants_df
 versements_df["Montant"]=versements_df["Montant"].astype(int)
 
 # CSS personnalisé pour un design moderne
