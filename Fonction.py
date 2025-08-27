@@ -238,7 +238,7 @@ def add_bg_local(image_file):
         )
 
 # Chargement des bases
-@st.cache_data()
+#@st.cache_data()
 def load_all_data():
     """
     Charge toutes les données depuis Google Sheets et les stocke dans st.session_state.
