@@ -10,16 +10,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-#boutton de mise à jour
-refresh=st.sidebar.button("Actualiser")
-if refresh:
-    etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
+load_all_data()
+etudiants_df=st.session_state.etudiants_df
+enseignants_df=st.session_state.enseignants_df
+seances_df=st.session_state.seances_df
+depenses_df=st.session_state.depenses_df
+versements_df=st.session_state.versements_df
+ventes_df=st.session_state.ventes_df
+presence_df=st.session_state.presence_df
+presences_df=st.session_state.presences_df
+fiches_paie_df=st.session_state.fiches_paie_df
+Connect_df=st.session_state.Connect_df
+#etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
 
-    photo=st.sidebar.camera_input("Prendre une photo")
-    st.rerun()
 
+# Charger les données (ne le fera que si data_loaded est False)
+#etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
+    
 
-etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
 
 #etudiants_df["DateArrivée"]=pd.to_datetime(etudiants_df['DateArrivée']).dt.date
 #etudiants_df['DateArrivée'] = etudiants_df['DateArrivée'].dt.strftime('%Y-%m-%d')

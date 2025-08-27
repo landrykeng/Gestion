@@ -6,15 +6,10 @@ import datetime
 import random
 from Fonction import *
 from Authentification import *
-from Home import etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presences_df, fiches_paie_df,statut_df
+
 
 # Configuration de la page
-st.set_page_config(
-    page_title="Admin - STATO-SPHERE PREPAS",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+
 
 # CSS personnalisé pour l'interface admin
 st.markdown("""
@@ -295,10 +290,27 @@ def main():
     is_authenticated = authentication_system("Administrateur")
     
     if is_authenticated:
- 
+        
+        #st.set_page_config(
+            #page_title="Admin - STATO-SPHERE PREPAS",
+            #page_icon="⚡",
+            #layout="wide",
+            #initial_sidebar_state="expanded")
+        
         user = st.session_state['username']
-        
-        
+        #from Home import etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presences_df, fiches_paie_df
+
+        etudiants_df=st.session_state.etudiants_df
+        enseignants_df=st.session_state.enseignants_df
+        seances_df=st.session_state.seances_df
+        depenses_df=st.session_state.depenses_df
+        versements_df=st.session_state.versements_df
+        ventes_df=st.session_state.ventes_df
+        presence_df=st.session_state.presence_df
+        presences_df=st.session_state.presences_df
+        fiches_paie_df=st.session_state.fiches_paie_df
+        Connect_df=st.session_state.Connect_df
+
         st.markdown(f"""
             <div class="admin-info">
                 <h2>⚡ Tableau de Bord Administrateur</h2>
@@ -308,7 +320,23 @@ def main():
             """, unsafe_allow_html=True)
         
         
-        
+        refresh=st.sidebar.button("Actualiser")
+        if refresh:
+            with st.spinner("Chargement des données...",show_time=True):
+                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
+                st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
+                st.session_state.seances_df = read_from_google_sheet("Séances")
+                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
+                st.session_state.versements_df = read_from_google_sheet("Versements")
+                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
+                st.session_state.presence_df = read_from_google_sheet("Présences")
+                st.session_state.presences_df = read_from_google_sheet("Présences")
+                st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
+                st.session_state.Connect_df = read_from_google_sheet("Connexion")
+            #st.rerun()  # relance la page et recharge les données
+
+            
+        #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
         
         
         
@@ -333,14 +361,13 @@ def main():
                     
                     with col_a:
                         nom_ens = st.text_input("Nom *", placeholder="Ex: MBANG")
+                        prenom_ens = st.text_input("Prénom *", placeholder="Ex: Pierre")
                         matiere_ens = st.multiselect("Matières enseignées *", COURS_CHOICES)
                         statut_ens = st.selectbox("Statut *", STATUT_ENSEIGNANT_CHOICES)
-                        centre_ens = st.multiselect("Centres d'affectation *", CENTRES_CHOICES)
                     
                     with col_b:
-                        prenom_ens = st.text_input("Prénom *", placeholder="Ex: Pierre")
                         telephone_ens = st.text_input("Téléphone", placeholder="Ex: +237670123456")
-                        
+                        centre_ens = st.multiselect("Centres d'affectation *", CENTRES_CHOICES)
                         date_embauche = st.date_input("Date d'embauche *", value=date.today())
                     
                     submitted_ens = st.form_submit_button("👨‍🏫 Ajouter l'Enseignant", type="primary")
@@ -433,6 +460,7 @@ def main():
                     
                     with col_a:
                         nom = st.text_input("Nom *", placeholder="Ex: DUPONT")
+                        prenom = st.text_input("Prénom *", placeholder="Ex: Jean")
                         sexe = st.selectbox("Sexe *", SEXE_CHOICES)
                         concours1 = st.selectbox("Concours Principal *", CONCOURS_CHOICES)
                         etablissement = st.selectbox("Établissement *", ETABLISSEMENT)
@@ -442,7 +470,6 @@ def main():
                         centre = st.selectbox("Centre *", CENTRES_CHOICES)
                     
                     with col_b:
-                        prenom = st.text_input("Prénom *", placeholder="Ex: Jean")
                         date_arrivee = st.date_input("Date d'arrivée *", value=date.today())
                         concours2 = st.selectbox("Concours Secondaire (optionnel)", [""] + CONCOURS_CHOICES)
                         concours3 = st.selectbox("Concours Tertiaire (optionnel)", [""] + CONCOURS_CHOICES)
@@ -593,17 +620,17 @@ def main():
                 
                 with col_b:
                     date_depense = st.date_input("Date *", value=date.today())
-                    centre_beneficiaire = st.selectbox("Centre bénéficiaire *", CENTRES_CHOICES)
+                    centre_beneficiaire = st.multiselect("Centre bénéficiaire *", CENTRES_CHOICES)
                     montant = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
                 
                 submitted_depense = st.form_submit_button("💳 Enregistrer", type="primary")
-                
+                All_beneficiaire = "; ".join(centre_beneficiaire)
                 if submitted_depense:
                     if motif_depense and type_depense and montant > 0:
                         id_depense = len(depenses_df) + 1
                         data = [
                             id_depense, motif_depense, type_depense, date_depense.strftime('%Y-%m-%d'),
-                            centre_responsable, centre_beneficiaire, montant
+                            centre_responsable, All_beneficiaire, montant
                         ]
                         
                         if save_to_google_sheet("Dépenses", data):
@@ -623,10 +650,6 @@ def main():
                 col_a, col_b = st.columns(2)
                 
                 with col_a:
-                    date_versement = st.date_input("Date *", value=date.today())
-                    montant_versement = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
-                
-                with col_b:
                     if not etudiants_df.empty:
                         etudiants_list = [f"{row['Matricule']} - {row['Nom']} {row['Prénom']}" 
                                         for _, row in etudiants_df.iterrows()]
@@ -634,10 +657,12 @@ def main():
                         matricule_etudiant = etudiant_selectionne.split(" - ")[0] if etudiant_selectionne else ""
                     else:
                         matricule_etudiant = ""
-                    
-                    centre_versement = st.selectbox("Centre *", CENTRES_CHOICES)
+                    montant_versement = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
+                    date_versement = st.date_input("Date *", value=date.today())
                 
-                motif_versement = st.text_input("Motif", placeholder="Ex: Frais d'inscription")
+                with col_b:
+                    centre_versement = st.selectbox("Centre *", CENTRES_CHOICES)
+                    motif_versement = st.text_input("Motif", placeholder="Ex: Frais d'inscription")
                 
                 submitted_versement = st.form_submit_button("💵 Enregistrer", type="primary")
                 

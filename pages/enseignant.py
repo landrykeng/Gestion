@@ -4,17 +4,11 @@ from datetime import datetime, date, time
 from openpyxl import Workbook
 from Authentification import *
 from Fonction import *
-from Home import etudiants_df, enseignants_df, seances_df, presences_df, Connect_df
 import io
 
 #import_users_from_excel()
 # Configuration de la page 
-st.set_page_config(
-    page_title="Enseignant - STATO-SPHERE PREPAS",
-    page_icon="👨‍🏫",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+
 
 
 def main():
@@ -22,14 +16,46 @@ def main():
     #st.markdown(tabs_css, unsafe_allow_html=True)
     is_authenticated = authentication_system("Enseignant")
     if is_authenticated:
+        #st.set_page_config(
+        #page_title="Enseignant - STATO-SPHERE PREPAS",
+        #page_icon="👨‍🏫",
+        #layout="wide",
+        #initial_sidebar_state="expanded"
+        #)
         user = st.session_state['username']
         
+        etudiants_df=st.session_state.etudiants_df
+        enseignants_df=st.session_state.enseignants_df
+        seances_df=st.session_state.seances_df
+        depenses_df=st.session_state.depenses_df
+        versements_df=st.session_state.versements_df
+        ventes_df=st.session_state.ventes_df
+        presence_df=st.session_state.presence_df
+        presences_df=st.session_state.presences_df
+        fiches_paie_df=st.session_state.fiches_paie_df
+        Connect_df=st.session_state.Connect_df
         
         #boutton de mise à jour
+        
         refresh=st.sidebar.button("Actualiser")
         if refresh:
-            etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
-
+            with st.spinner("Chargement des données...",show_time=True):
+                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
+                st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
+                st.session_state.seances_df = read_from_google_sheet("Séances")
+                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
+                st.session_state.versements_df = read_from_google_sheet("Versements")
+                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
+                st.session_state.presence_df = read_from_google_sheet("Présences")
+                st.session_state.presences_df = read_from_google_sheet("Présences")
+                st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
+                st.session_state.Connect_df = read_from_google_sheet("Connexion")
+            #st.rerun()  # relance la page et recharge les données
+            
+        #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
+                 
+                
+                
         
         df_ens=enseignants_df[["Nom","ID","Matière"]]
         dict_ens=df_ens.set_index("Nom").to_dict()
@@ -632,6 +658,7 @@ def main():
                 
                 with col1:
                     nom = st.text_input("Nom *", placeholder="Ex: DUPONT")
+                    prenom = st.text_input("Prénom *", placeholder="Ex: Jean")
                     sexe = st.selectbox("Sexe *", SEXE_CHOICES)
                     concours1 = st.selectbox("Concours Principal *", CONCOURS_CHOICES)
                     etablissement = st.selectbox("Établissement", ETABLISSEMENT)
@@ -639,7 +666,6 @@ def main():
                     centre = st.selectbox("Centre *", teacher_info['centres'])
                 
                 with col2:
-                    prenom = st.text_input("Prénom *", placeholder="Ex: Jean")
                     date_arrivee = st.date_input("Date d'arrivée *", value=date.today())
                     concours2 = st.selectbox("Concours Secondaire (optionnel)", [""] + CONCOURS_CHOICES)
                     concours3 = st.selectbox("Concours Tertiaire (optionnel)", [""] + CONCOURS_CHOICES)

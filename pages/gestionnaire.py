@@ -8,15 +8,10 @@ from Authentification import *
 from Fonction import *
 import base64
 from io import BytesIO
-from Home import etudiants_df, enseignants_df, depenses_df, versements_df, ventes_df, presences_df, Connect_df
 
 
-st.set_page_config(
-    page_title="Gestionnaire - STATO-SPHERE PREPAS",
-    page_icon="🧑‍💻",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+
+
 
 # CSS personnalisé
 management_css = """
@@ -186,15 +181,45 @@ def main():
     is_authenticated = authentication_system("Gestionnaire")
     
     if is_authenticated:
+        #st.set_page_config(
+            #page_title="Gestionnaire - STATO-SPHERE PREPAS",
+           # page_icon="🧑‍💻",
+           # layout="wide",
+           # initial_sidebar_state="expanded"
+       # )
+        
+        #from Home import etudiants_df, enseignants_df, depenses_df, versements_df, ventes_df, presences_df
         user = st.session_state['username']
         st.sidebar.title("Interface Gestionnaire")
         st.sidebar.write(f"Bienvenue, {user}!")
-        
-        
-        #boutton de mise à jour
+
+        etudiants_df=st.session_state.etudiants_df
+        enseignants_df=st.session_state.enseignants_df
+        seances_df=st.session_state.seances_df
+        depenses_df=st.session_state.depenses_df
+        versements_df=st.session_state.versements_df
+        ventes_df=st.session_state.ventes_df
+        presence_df=st.session_state.presence_df
+        presences_df=st.session_state.presences_df
+        fiches_paie_df=st.session_state.fiches_paie_df
+        Connect_df=st.session_state.Connect_df
+
         refresh=st.sidebar.button("Actualiser")
         if refresh:
-            etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, statut_df, Connect_df=load_all_data()
+            with st.spinner("Chargement des données...",show_time=True):
+                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
+                st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
+                st.session_state.seances_df = read_from_google_sheet("Séances")
+                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
+                st.session_state.versements_df = read_from_google_sheet("Versements")
+                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
+                st.session_state.presence_df = read_from_google_sheet("Présences")
+                st.session_state.presences_df = read_from_google_sheet("Présences")
+                st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
+                st.session_state.Connect_df = read_from_google_sheet("Connexion")
+            #st.rerun()  # relance la page et recharge les données
+
+        #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()   
 
         
         # ============== INTERFACE PRINCIPALE ==============
@@ -240,6 +265,7 @@ def main():
                     
                     with col_a:
                         nom = st.text_input("Nom *", placeholder="Ex: DUPONT")
+                        prenom = st.text_input("Prénom *", placeholder="Ex: Jean")
                         sexe = st.selectbox("Sexe *", SEXE_CHOICES)
                         concours1 = st.selectbox("Concours Principal *", CONCOURS_CHOICES)
                         etablissement = st.selectbox("Établissement *", ETABLISSEMENT)
@@ -249,7 +275,6 @@ def main():
                         centre = st.selectbox("Centre *", CENTRES_CHOICES)
                     
                     with col_b:
-                        prenom = st.text_input("Prénom *", placeholder="Ex: Jean")
                         date_arrivee = st.date_input("Date d'arrivée *", value=date.today())
                         concours2 = st.selectbox("Concours Secondaire (optionnel)", [""] + CONCOURS_CHOICES)
                         concours3 = st.selectbox("Concours Tertiaire (optionnel)", [""] + CONCOURS_CHOICES)
@@ -397,18 +422,18 @@ def main():
                     
                     with col_b:
                         date_depense = st.date_input("Date de la dépense *", value=date.today())
-                        centre_beneficiaire = st.selectbox("Centre bénéficiaire *", CENTRES_CHOICES)
+                        centre_beneficiaire = st.multiselect("Centre bénéficiaire *", CENTRES_CHOICES)
                         montant = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
                     
                     submitted_depense = st.form_submit_button("💳 Enregistrer la Dépense", type="primary")
-                    
+                    All_beneficiaire = "; ".join(centre_beneficiaire)
                     if submitted_depense:
                         if motif_depense and type_depense and centre_responsable and centre_beneficiaire and montant > 0:
                             id_depense = len(depenses_df) + 1
                             
                             data = [
                                 id_depense, motif_depense, type_depense, date_depense.strftime('%Y-%m-%d'),
-                                centre_responsable, centre_beneficiaire, montant
+                                centre_responsable, All_beneficiaire, montant
                             ]
                             
                             if save_to_google_sheet("Dépenses", data):
@@ -447,25 +472,21 @@ def main():
                 
                 with st.form("form_versement"):
                     col_a, col_b = st.columns(2)
-                    
+                
                     with col_a:
-                        date_versement = st.date_input("Date du versement *", value=date.today())
-                        montant_versement = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
-                    
-                    with col_b:
-                        # Sélection de l'étudiant par matricule
                         if not etudiants_df.empty:
                             etudiants_list = [f"{row['Matricule']} - {row['Nom']} {row['Prénom']}" 
                                             for _, row in etudiants_df.iterrows()]
                             etudiant_selectionne = st.selectbox("Étudiant *", etudiants_list)
                             matricule_etudiant = etudiant_selectionne.split(" - ")[0] if etudiant_selectionne else ""
                         else:
-                            st.warning("Aucun étudiant enregistré. Ajoutez d'abord des étudiants.")
                             matricule_etudiant = ""
-                        
-                        centre_versement = st.selectbox("Centre *", CENTRES_CHOICES)
+                        montant_versement = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
+                        date_versement = st.date_input("Date *", value=date.today())
                     
-                    motif_versement = st.text_input("Motif (optionnel)", placeholder="Ex: Frais d'inscription")
+                    with col_b:
+                        centre_versement = st.selectbox("Centre *", CENTRES_CHOICES)
+                        motif_versement = st.text_input("Motif", placeholder="Ex: Frais d'inscription")
                     
                     submitted_versement = st.form_submit_button("💵 Enregistrer le Versement", type="primary")
                     
@@ -594,13 +615,7 @@ def main():
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col2:
-                st.markdown("### 📈 Ventes par Type de Bords")
-                if not ventes_df.empty and 'Bord' in ventes_df.columns:
-                    bord_ventes = ventes_df.groupby('Bord')['Montant'].sum().sort_values(ascending=False)
-                    for bord, montant in bord_ventes.items():
-                        st.metric(f"📚 {bord}", f"{montant} FCFA")
-                else:
-                    st.info("Aucune vente enregistrée")
+                pass
         
         # ====================== ONGLET PRÉSENCES ======================
         with tab5:

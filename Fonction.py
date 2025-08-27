@@ -13,8 +13,8 @@ from google.oauth2.service_account import Credentials
 from functools import lru_cache
 import json
 
-
-SERVICE_ACCOUNT_FILE = st.secrets["gcp_service_account"]
+version="online"  # "local" or "online"
+SERVICE_ACCOUNT_FILE = st.secrets["gcp_service_account"] if version=="online" else  "Credential.json"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -26,13 +26,17 @@ _client = None
 _sheet = None
 _last_connection = 0
 CONNECTION_TIMEOUT = 300  # 5 minutes
+statut_df = pd.DataFrame({"ID": ["A+","A","A-","N+","N","N-"], "Honnoraire": [5000, 4500, 4000, 3500, 3000, 2500]})
 
 @lru_cache(maxsize=1)
 def get_credentials():
     """Cache les credentials pour éviter de les recharger"""
     try:
         # SERVICE_ACCOUNT_FILE est ici un dictionnaire contenant les credentials
-        return Credentials.from_service_account_info(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        if version=="online":
+            return Credentials.from_service_account_info(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        else:
+            return Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     except Exception as e:
         st.error(f"Erreur credentials : {e}")
         return None
@@ -233,21 +237,25 @@ def add_bg_local(image_file):
         )
 
 # Chargement des bases
-@st.cache_data
+@st.cache_data()
 def load_all_data():
-    etudiants_df = read_from_google_sheet("Étudiants")
-    enseignants_df = read_from_google_sheet("Enseignants")
-    seances_df = read_from_google_sheet("Séances")
-    depenses_df = read_from_google_sheet("Dépenses")
-    versements_df = read_from_google_sheet("Versements")
-    ventes_df = read_from_google_sheet("Ventes_Bords")
-    presence_df = read_from_google_sheet("Présences")
-    presences_df = read_from_google_sheet("Présences")
-    fiches_paie_df = read_from_google_sheet("Fiches_Paie")
-    statut_df=read_from_google_sheet("Statuts")
-    Connect_df=read_from_google_sheet("Connexion")
-
-    return etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df,statut_df, Connect_df
+    """
+    Charge toutes les données depuis Google Sheets et les stocke dans st.session_state.
+    """
+    if "data_loaded" not in st.session_state or not st.session_state.data_loaded:
+        with st.spinner("Chargement des données...",show_time=True):
+            st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
+            st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
+            st.session_state.seances_df = read_from_google_sheet("Séances")
+            st.session_state.depenses_df = read_from_google_sheet("Dépenses")
+            st.session_state.versements_df = read_from_google_sheet("Versements")
+            st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
+            st.session_state.presence_df = read_from_google_sheet("Présences")
+            st.session_state.presences_df = read_from_google_sheet("Présences")
+            st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
+            st.session_state.Connect_df = read_from_google_sheet("Connexion")
+            st.session_state.data_loaded = True
+        
 SHEETS = {
         "etudiant": "Étudiants",
         "depense": "Dépenses", 
@@ -275,9 +283,9 @@ ETABLISSEMENT=["Université Yde1","Université Yde2(SOA)","Université Dschang",
 dict_honnoraire = {"A+":5000,
                    "A":4500,
                    "A-":4000,
+                   "N+":3500,
                    "N":3500,
-                   "N":3500,
-                   "N--":2500}
+                   "N-":2500}
     
 
 
