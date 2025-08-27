@@ -13,6 +13,7 @@ from google.oauth2.service_account import Credentials
 from functools import lru_cache
 import json
 
+st.session_state.data_loaded = False
 version="online"  # "local" or "online"
 SERVICE_ACCOUNT_FILE = st.secrets["gcp_service_account"] if version=="online" else  "Credential.json"
 SCOPES = [
