@@ -18,26 +18,9 @@ depenses_df=st.session_state.depenses_df
 versements_df=st.session_state.versements_df
 ventes_df=st.session_state.ventes_df
 presence_df=st.session_state.presence_df
-presences_df=st.session_state.presences_df
 fiches_paie_df=st.session_state.fiches_paie_df
 Connect_df=st.session_state.Connect_df
-#etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
 
-
-# Charger les données (ne le fera que si data_loaded est False)
-#etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
-    
-
-
-#etudiants_df["DateArrivée"]=pd.to_datetime(etudiants_df['DateArrivée']).dt.date
-#etudiants_df['DateArrivée'] = etudiants_df['DateArrivée'].dt.strftime('%Y-%m-%d')
-
-#versements_df["Date"]=pd.to_datetime(versements_df['Date']).dt.date
-#versements_df['Date'] = versements_df['Date'].dt.strftime('%Y-%m-%d')
-
-#depenses_df["Date"]=pd.to_datetime(depenses_df['Date']).dt.date
-#depenses_df['Date'] = depenses_df['Date'].dt.strftime('%Y-%m-%d')
-#etudiants_df
 versements_df["Montant"]=versements_df["Montant"].astype(int)
 
 # CSS personnalisé pour un design moderne

@@ -200,24 +200,10 @@ def main():
         versements_df=st.session_state.versements_df
         ventes_df=st.session_state.ventes_df
         presence_df=st.session_state.presence_df
-        presences_df=st.session_state.presences_df
         fiches_paie_df=st.session_state.fiches_paie_df
         Connect_df=st.session_state.Connect_df
 
-        refresh=st.sidebar.button("Actualiser")
-        if refresh:
-            with st.spinner("Chargement des données...",show_time=True):
-                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
-                st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
-                st.session_state.seances_df = read_from_google_sheet("Séances")
-                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
-                st.session_state.versements_df = read_from_google_sheet("Versements")
-                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
-                st.session_state.presence_df = read_from_google_sheet("Présences")
-                st.session_state.presences_df = read_from_google_sheet("Présences")
-                st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
-                st.session_state.Connect_df = read_from_google_sheet("Connexion")
-            #st.rerun()  # relance la page et recharge les données
+        
 
         #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()   
 
@@ -236,12 +222,6 @@ def main():
         # Statistiques rapides
         col1, col2, col3, col4 = st.columns(4)
         
-        # Calcul des statistiques
-        #etudiants_df = read_from_google_sheet("Étudiants")
-        #enseignants_df = read_from_google_sheet("Enseignants")
-        #depenses_df = read_from_google_sheet("Dépenses")
-        #versements_df = read_from_google_sheet("Versements")
-        #ventes_df = read_from_google_sheet("Ventes_Bords")
 
 
         # Interface à onglets
@@ -293,6 +273,7 @@ def main():
                             ]
                             
                             if save_to_google_sheet("Étudiants", data):
+                                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Étudiant enregistré avec succès !</strong><br>
@@ -348,7 +329,7 @@ def main():
                     
                     # Calcul des statistiques de l'étudiant
                     #presences_df = read_from_google_sheet("Présences")
-                    stats = calculate_student_stats(student['Matricule'], versements_df, presences_df, read_from_google_sheet("Séances"))
+                    stats = calculate_student_stats(student['Matricule'], versements_df, presence_df, read_from_google_sheet("Séances"))
                     
                     st.markdown("---")
                     st.markdown(f"""
@@ -437,6 +418,7 @@ def main():
                             ]
                             
                             if save_to_google_sheet("Dépenses", data):
+                                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Dépense enregistrée avec succès !</strong><br>
@@ -500,6 +482,7 @@ def main():
                             ]
                             
                             if save_to_google_sheet("Versements", data):
+                                st.session_state.versements_df = read_from_google_sheet("Versements")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Versement enregistré avec succès !</strong><br>
@@ -593,6 +576,7 @@ def main():
                             ]
                             
                             if save_to_google_sheet("Ventes_Bords", data):
+                                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Vente enregistrée avec succès !</strong><br>
@@ -862,7 +846,7 @@ def main():
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
-                                id_presence = len(presences_df) + success_count + 1
+                                id_presence = len(presence_df) + success_count + 1
                                 data = [
                                     id_presence, matricule, 
                                     f"{config['cours']} - {config['intitule']}", 
@@ -875,6 +859,7 @@ def main():
                                     success_count += 1
                             
                             if success_count > 0:
+                                st.session_state.presence_df = read_from_google_sheet("Présences")
                                 st.success(f"✅ {success_count} présences enregistrées avec succès !")
                                 # Reset après sauvegarde
                                 st.session_state.appel_started = False
@@ -915,7 +900,7 @@ def main():
             
             if st.button("📊 Analyser l'Absentéisme", type="primary"):
                 #presences_df = read_from_google_sheet("Présences")
-                absent_students = get_absent_students(start_date_abs, end_date_abs, min_absences, presences_df, etudiants_df)
+                absent_students = get_absent_students(start_date_abs, end_date_abs, min_absences, presence_df, etudiants_df)
                 
                 if not absent_students.empty:
                     st.markdown(f"### 📋 Étudiants Absentéistes ({len(absent_students)} trouvé(s))")

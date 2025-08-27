@@ -31,28 +31,12 @@ def main():
         versements_df=st.session_state.versements_df
         ventes_df=st.session_state.ventes_df
         presence_df=st.session_state.presence_df
-        presences_df=st.session_state.presences_df
         fiches_paie_df=st.session_state.fiches_paie_df
         Connect_df=st.session_state.Connect_df
         
         #boutton de mise à jour
         
-        refresh=st.sidebar.button("Actualiser")
-        if refresh:
-            with st.spinner("Chargement des données...",show_time=True):
-                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
-                st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
-                st.session_state.seances_df = read_from_google_sheet("Séances")
-                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
-                st.session_state.versements_df = read_from_google_sheet("Versements")
-                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
-                st.session_state.presence_df = read_from_google_sheet("Présences")
-                st.session_state.presences_df = read_from_google_sheet("Présences")
-                st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
-                st.session_state.Connect_df = read_from_google_sheet("Connexion")
-            #st.rerun()  # relance la page et recharge les données
-            
-        #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
+        
                  
                 
                 
@@ -378,7 +362,7 @@ def main():
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
-                                id_presence = len(presences_df) + success_count + 1
+                                id_presence = len(presence_df) + success_count + 1
                                 data = [
                                     id_presence, matricule, 
                                     f"{config['cours']} - {config['intitule']}", 
@@ -398,6 +382,7 @@ def main():
                                 st.session_state.presences_data = {}
                                 st.session_state.etudiants_appel = []
                                 st.balloons()
+                                st.session_state.presence_df = read_from_google_sheet("Présences")
                             else:
                                 st.error("❌ Erreur lors de l'enregistrement des présences")
                     
@@ -490,7 +475,7 @@ def main():
                                                datetime.combine(date.today(), heure_arrivee)).seconds // 60
                                 duree_heures = duree_minutes // 60
                                 duree_min_restant = duree_minutes % 60
-                                
+                                st.session_state.seances_df = read_from_google_sheet("Séances")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Séance enregistrée avec succès !</strong><br>
@@ -684,6 +669,7 @@ def main():
                         ]
                         
                         if save_to_google_sheet("Étudiants", data):
+                            st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
                             st.markdown(f"""
                             <div class="success-box">
                                 ✅ <strong>Étudiant enregistré avec succès !</strong><br>
