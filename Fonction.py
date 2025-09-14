@@ -14,7 +14,7 @@ from functools import lru_cache
 import json
 
 st.session_state.data_loaded = False
-version="online"  # "local" or "online"
+version="local"  # "local" or "online"
 SERVICE_ACCOUNT_FILE = st.secrets["gcp_service_account"] if version=="online" else  "Credential.json"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -505,7 +505,7 @@ def generate_receipt_html(student_info, versement_info):
             
             <div class="footer">
                 <p><strong>Merci pour votre confiance !</strong></p>
-                <p>📞 Contact: +237 6XX XXX XXX | 📧 Email: statosphereprepas@gmail.com</p>
+                <p>📞 Contact: +237 6 92 80 34 23 // 6 54 75 60 37 | 📧 Email: statosphereprepas@gmail.com</p>
                 <p>🏢 Centres: Yaoundé • Douala • Dschang</p>
             </div>
             

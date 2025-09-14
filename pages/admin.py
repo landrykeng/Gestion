@@ -630,43 +630,99 @@ def main():
         
         # ==================== ONGLET VERSEMENTS ====================
         with tab4:
-            st.markdown("## 💰 Gestion des Versements")
+            st.markdown('## <div class="form-container"> 💰 Gestion des Versements', unsafe_allow_html=True)
+            col1, col2 = st.columns([2, 1])
             
-            st.markdown('<div class="form-container">', unsafe_allow_html=True)
+            with col1:
+                
+                st.markdown("### ➕ Enregistrer un Nouveau Versement")
+                
+                with st.form("form_versement"):
+                    col_a, col_b = st.columns(2)
+                
+                    with col_a:
+                        if not etudiants_df.empty:
+                            etudiants_list = [f"{row['Matricule']} - {row['Nom']} {row['Prénom']}" 
+                                            for _, row in etudiants_df.iterrows()]
+                            etudiant_selectionne = st.selectbox("Étudiant *", etudiants_list)
+                            matricule_etudiant = etudiant_selectionne.split(" - ")[0] if etudiant_selectionne else ""
+                        else:
+                            matricule_etudiant = ""
+                        montant_versement = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
+                        date_versement = st.date_input("Date *", value=date.today())
+                    
+                    with col_b:
+                        centre_versement = st.selectbox("Centre *", CENTRES_CHOICES)
+                        motif_versement = st.text_input("Motif", placeholder="Ex: Frais d'inscription")
+                    
+                    submitted_versement = st.form_submit_button("💵 Enregistrer le Versement", type="primary")
+                    
+                    if submitted_versement:
+                        if date_versement and montant_versement > 0 and matricule_etudiant and centre_versement:
+                            id_versement = len(versements_df) + 1
+                            
+                            data = [
+                                id_versement, date_versement.strftime('%Y-%m-%d'), motif_versement,
+                                montant_versement, centre_versement, matricule_etudiant
+                            ]
+                            
+                            if save_to_google_sheet("Versements", data):
+                                st.session_state.versements_df = read_from_google_sheet("Versements")
+                                st.markdown(f"""
+                                <div class="success-box">
+                                    ✅ <strong>Versement enregistré avec succès !</strong><br>
+                                    Montant: <strong>{montant_versement:,.0f} FCFA</strong>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Générer le reçu
+                                student_info = etudiants_df[etudiants_df['Matricule'] == matricule_etudiant].iloc[0]
+                                versement_info = {
+                                    'date': date_versement.strftime('%d/%m/%Y'),
+                                    'montant': montant_versement,
+                                    'motif': motif_versement
+                                }
+                                
+                                receipt_html = generate_receipt_html(student_info, versement_info)
+                                
+                                st.markdown("---")
+                                st.markdown("### 📄 Reçu de Paiement")
+                                
+                                col_receipt1, col_receipt2 = st.columns([3, 1])
+                                
+                                with col_receipt1:
+                                    st.markdown(f"""
+                                    <div class="receipt-container">
+                                        <h4>🎓 Reçu généré automatiquement</h4>
+                                        <p><strong>Étudiant:</strong> {student_info['Nom']} {student_info['Prénom']}</p>
+                                        <p><strong>Matricule:</strong> {student_info['Matricule']}</p>
+                                        <p><strong>Montant:</strong> {montant_versement:,.0f} FCFA</p>
+                                        <p><strong>Date:</strong> {date_versement.strftime('%d/%m/%Y')}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                with col_receipt2:
+                                    # Bouton de téléchargement du reçu
+                                    b64 = base64.b64encode(receipt_html.encode()).decode()
+                                    href = f'data:text/html;base64,{b64}'
+                                    st.markdown(f'<a href="{href}" download="recu_{matricule_etudiant}_{date_versement.strftime("%Y%m%d")}.html"><button style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">📥 Télécharger le Reçu</button></a>', unsafe_allow_html=True)
+                            else:
+                                st.markdown("""
+                                <div class="error-box">
+                                    ❌ Erreur lors de l'enregistrement.
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown("""
+                            <div class="error-box">
+                                ⚠️ Veuillez remplir tous les champs obligatoires
+                            </div>
+                            """, unsafe_allow_html=True)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
             
-            with st.form("form_versement"):
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    if not etudiants_df.empty:
-                        etudiants_list = [f"{row['Matricule']} - {row['Nom']} {row['Prénom']}" 
-                                        for _, row in etudiants_df.iterrows()]
-                        etudiant_selectionne = st.selectbox("Étudiant *", etudiants_list)
-                        matricule_etudiant = etudiant_selectionne.split(" - ")[0] if etudiant_selectionne else ""
-                    else:
-                        matricule_etudiant = ""
-                    montant_versement = st.number_input("Montant (FCFA) *", min_value=0, step=1000)
-                    date_versement = st.date_input("Date *", value=date.today())
-                
-                with col_b:
-                    centre_versement = st.selectbox("Centre *", CENTRES_CHOICES)
-                    motif_versement = st.text_input("Motif", placeholder="Ex: Frais d'inscription")
-                
-                submitted_versement = st.form_submit_button("💵 Enregistrer", type="primary")
-                
-                if submitted_versement:
-                    if date_versement and montant_versement > 0 and matricule_etudiant:
-                        id_versement = len(versements_df) + 1
-                        data = [
-                            id_versement, date_versement.strftime('%Y-%m-%d'), motif_versement,
-                            montant_versement, centre_versement, matricule_etudiant
-                        ]
-                        
-                        if save_to_google_sheet("Versements", data):
-                            st.session_state.versements_df = read_from_google_sheet("Versements")
-                            st.success(f"✅ Versement de {montant_versement:,} FCFA enregistré")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+            with col2:
+                pass
         
         # ==================== ONGLET VENTES ====================
         with tab5:
