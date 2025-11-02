@@ -320,7 +320,7 @@ def main():
         
         st.markdown(f"""
             <div class="admin-info">
-                <h2>⚡ Tableau de Bord Administrateur</h2>
+                <h2>⚡ Espace Administrateur</h2>
                 <p><strong>Connecté en tant que :</strong> {user.upper()}</p>
                 <p><strong>Droits :</strong> Accès complet à toutes les fonctionnalités</p>
             </div>
