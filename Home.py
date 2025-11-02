@@ -1,6 +1,6 @@
 import streamlit as st
 from Fonction import *
-
+from Authentification import *
 
 # Configuration de la page
 st.set_page_config(
@@ -10,6 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+import_users_from_excel()
 load_all_data()
 etudiants_df=st.session_state.etudiants_df
 enseignants_df=st.session_state.enseignants_df
@@ -21,8 +22,11 @@ presence_df=st.session_state.presence_df
 fiches_paie_df=st.session_state.fiches_paie_df
 Connect_df=st.session_state.Connect_df
 
-versements_df["Montant"]=versements_df["Montant"].astype(int)
+#versements_df["Montant"]=versements_df["Montant"].astype(int)
 
+dict_ens = dict(zip(enseignants_df["Nom"], zip(enseignants_df["id"])))
+st.session_state.dict_ens=dict_ens
+   
 # CSS personnalisé pour un design moderne
 st.markdown("""
 <style>
@@ -171,6 +175,7 @@ KNOWLEDGE_BASE = {
         "paiement": ["Comptant", "Échelonné", "Mobile Money", "Virement bancaire"]
     }
 }
+
 
 def get_chatbot_response(user_message):
     """Génère une réponse du chatbot basée sur le message de l'utilisateur"""

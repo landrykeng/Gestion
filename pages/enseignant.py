@@ -24,6 +24,10 @@ def main():
         #)
         user = st.session_state['username']
         
+        id_center_dict=st.session_state.dict_ens
+        
+        #user_center=id_center_dict[user][1]
+        user_center="Yaoundé"
         etudiants_df=st.session_state.etudiants_df
         enseignants_df=st.session_state.enseignants_df
         seances_df=st.session_state.seances_df
@@ -35,19 +39,21 @@ def main():
         Connect_df=st.session_state.Connect_df
         
         #boutton de mise à jour
+        id_center_dict=st.session_state.dict_ens
         
         
-                 
                 
-                
         
-        df_ens=enseignants_df[["Nom","ID","Matière"]]
+        
+        df_ens=enseignants_df[["Nom","id","Matière"]]
         dict_ens=df_ens.set_index("Nom").to_dict()
-        teacher_id=dict_ens.get("ID")[user]
+        
+        teacher_id=dict_ens.get("id")[user]
         teacher_lesson=dict_ens.get("Matière")[user]
         teacher_info = get_teacher_info(user)
         
-        #seances_df = read_from_google_sheet("Séances")
+        #seances_df = read_from_supabase("Séances")
+        
         teacher_seances = seances_df[seances_df['idEnseignant'] == teacher_id]
         
         
@@ -92,7 +98,7 @@ def main():
         
         #chargement des données
         
-        #etudiants_df = read_from_google_sheet("Étudiants")
+        #etudiants_df = read_from_supabase("Étudiants")
         
         
         # ============== INTERFACE PRINCIPALE ==============
@@ -182,7 +188,7 @@ def main():
                     etudiants_filtres = etudiants_df[etudiants_df['Centre'] == centre_appel]
                     
                     # Filtrer par concours (OR entre les concours sélectionnés)
-                    etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['Concours2'].isin(concours_appel)) | (etudiants_filtres['Concours3'].isin(concours_appel))]
+                    etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['concours2'].isin(concours_appel)) | (etudiants_filtres['concours3'].isin(concours_appel))]
                     
                     etudiants_filtres=etudiants_filtres.sort_values(by=["Nom","Prénom"])
                     # Affichage du résumé
@@ -358,20 +364,19 @@ def main():
                     
                     with col_save:
                         if st.button("💾 Enregistrer les Présences", type="primary", use_container_width=True):
-                            #presences_df = read_from_google_sheet("Présences")
+                            #presences_df = read_from_supabase("Présences")
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
                                 id_presence = len(presence_df) + success_count + 1
-                                data = [
-                                    id_presence, matricule, 
+                                data = [matricule, 
                                     f"{config['cours']} - {config['intitule']}", 
                                     statut, 
                                     config['date'].strftime('%Y-%m-%d'), 
-                                    teacher_id  # idEnseignant 
+                                    teacher_id ,user_center
                                 ]
                                 
-                                if save_to_google_sheet("Présences", data):
+                                if save_to_supabase("Présence", data):
                                     success_count += 1
                             
                             if success_count > 0:
@@ -382,7 +387,7 @@ def main():
                                 st.session_state.presences_data = {}
                                 st.session_state.etudiants_appel = []
                                 st.balloons()
-                                st.session_state.presence_df = read_from_google_sheet("Présences")
+                                st.session_state.presence_df = read_from_supabase("Présence")
                             else:
                                 st.error("❌ Erreur lors de l'enregistrement des présences")
                     
@@ -453,11 +458,10 @@ def main():
                             """, unsafe_allow_html=True)
                         else:
                             # Génération de l'ID
-                            #seances_df = read_from_google_sheet("Séances")
+                            #seances_df = read_from_supabase("Séances")
                             id_seance = len(seances_df) + 1
                             Vclasse=", ".join(classe)
                             data = [
-                                id_seance,
                                 date_seance.strftime('%Y-%m-%d'),
                                 cours_dispense,
                                 heure_arrivee.strftime('%H:%M'),
@@ -469,13 +473,13 @@ def main():
                                 nombre_etudiants
                             ]
                             
-                            if save_to_google_sheet("Séances", data):
+                            if save_to_supabase("Séances", data):
                                 # Calcul de la durée
                                 duree_minutes = (datetime.combine(date.today(), heure_depart) - 
                                                datetime.combine(date.today(), heure_arrivee)).seconds // 60
                                 duree_heures = duree_minutes // 60
                                 duree_min_restant = duree_minutes % 60
-                                st.session_state.seances_df = read_from_google_sheet("Séances")
+                                st.session_state.seances_df = read_from_supabase("Séances")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Séance enregistrée avec succès !</strong><br>
@@ -665,11 +669,11 @@ def main():
                         data = [
                             matricule, nom, prenom, sexe, concours1,
                             concours2 if concours2 else "", concours3 if concours3 else "",
-                            telephone, date_arrivee.strftime('%Y-%m-%d'), etablissement, centre
+                            telephone,  etablissement, centre, date_arrivee.strftime('%Y-%m-%d')
                         ]
                         
-                        if save_to_google_sheet("Étudiants", data):
-                            st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
+                        if save_to_supabase("Etudiants", data):
+                            st.session_state.etudiants_df = read_from_supabase("Etudiants")
                             st.markdown(f"""
                             <div class="success-box">
                                 ✅ <strong>Étudiant enregistré avec succès !</strong><br>
@@ -696,7 +700,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
         #Enregistrement des données de connexion 
         data_connection=[user,'Enseignant', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
-        save_to_google_sheet("Connexion", data_connection)   
+        save_to_supabase("Connexion", data_connection)   
 if __name__ == "__main__":
     main()     
 

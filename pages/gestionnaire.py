@@ -193,6 +193,10 @@ def main():
         st.sidebar.title("Interface Gestionnaire")
         st.sidebar.write(f"Bienvenue, {user}!")
 
+        id_center_dict=st.session_state.dict_ens
+        
+        #user_center=id_center_dict[user][1]
+        user_center="Yaoundé"
         etudiants_df=st.session_state.etudiants_df
         enseignants_df=st.session_state.enseignants_df
         seances_df=st.session_state.seances_df
@@ -203,8 +207,13 @@ def main():
         fiches_paie_df=st.session_state.fiches_paie_df
         Connect_df=st.session_state.Connect_df
 
+        #etudiants_df=etudiants_df[etudiants_df["Centre"]==user_center]
+        #depenses_df=depenses_df[depenses_df["CentreResponsable"]==user_center]
+        #versements_df=versements_df[versements_df["Centre"]==user_center]
+        #ventes_df=ventes_df[ventes_df["Centre"]==user_center]
+        #presence_df=presence_df[presence_df["Centre"]==user_center]
         
-
+        
         #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()   
 
         
@@ -269,11 +278,11 @@ def main():
                             data = [
                                 matricule, nom, prenom, sexe, concours1,
                                 concours2 if concours2 else "", concours3 if concours3 else "",
-                                telephone, date_arrivee.strftime('%Y-%m-%d'), etablissement, centre
+                                telephone, etablissement, centre, date_arrivee.strftime('%Y-%m-%d')
                             ]
                             
-                            if save_to_google_sheet("Étudiants", data):
-                                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
+                            if save_to_supabase("Etudiants", data):
+                                st.session_state.etudiants_df = read_from_supabase("Etudiants")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Étudiant enregistré avec succès !</strong><br>
@@ -328,8 +337,8 @@ def main():
                     student = st.session_state['selected_student']
                     
                     # Calcul des statistiques de l'étudiant
-                    #presences_df = read_from_google_sheet("Présences")
-                    stats = calculate_student_stats(student['Matricule'], versements_df, presence_df, read_from_google_sheet("Séances"))
+                    #presences_df = read_from_supabase("Présences")
+                    stats = calculate_student_stats(student['Matricule'], versements_df, presence_df, read_from_supabase("Séances"))
                     
                     st.markdown("---")
                     st.markdown(f"""
@@ -412,13 +421,12 @@ def main():
                         if motif_depense and type_depense and centre_responsable and centre_beneficiaire and montant > 0:
                             id_depense = len(depenses_df) + 1
                             
-                            data = [
-                                id_depense, motif_depense, type_depense, date_depense.strftime('%Y-%m-%d'),
+                            data = [motif_depense, type_depense, date_depense.strftime('%Y-%m-%d'),
                                 centre_responsable, All_beneficiaire, montant
                             ]
                             
-                            if save_to_google_sheet("Dépenses", data):
-                                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
+                            if save_to_supabase("Dépenses", data):
+                                st.session_state.depenses_df = read_from_supabase("Dépenses")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Dépense enregistrée avec succès !</strong><br>
@@ -476,13 +484,12 @@ def main():
                         if date_versement and montant_versement > 0 and matricule_etudiant and centre_versement:
                             id_versement = len(versements_df) + 1
                             
-                            data = [
-                                id_versement, date_versement.strftime('%Y-%m-%d'), motif_versement,
-                                montant_versement, centre_versement, matricule_etudiant
+                            data = [date_versement.strftime('%Y-%m-%d'), motif_versement,
+                                 centre_versement, montant_versement, matricule_etudiant
                             ]
-                            
-                            if save_to_google_sheet("Versements", data):
-                                st.session_state.versements_df = read_from_google_sheet("Versements")
+
+                            if save_to_supabase("Versement", data):
+                                st.session_state.versements_df = read_from_supabase("Versement")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Versement enregistré avec succès !</strong><br>
@@ -570,13 +577,12 @@ def main():
                             
                             id_vente = len(ventes_df) + 1
                             
-                            data = [
-                                id_vente, bord_vendu, nom_acheteur, contact_acheteur,
+                            data = [ bord_vendu, nom_acheteur, contact_acheteur,
                                 nombre_bords, montant_vente, centre_vente, date_vente.strftime('%Y-%m-%d')
                             ]
                             
-                            if save_to_google_sheet("Ventes_Bords", data):
-                                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
+                            if save_to_supabase("Bord", data):
+                                st.session_state.ventes_df = read_from_supabase("Bord")
                                 st.markdown(f"""
                                 <div class="success-box">
                                     ✅ <strong>Vente enregistrée avec succès !</strong><br>
@@ -632,11 +638,7 @@ def main():
                         key="concours_config"
                     )
                     
-                    # Liste des enseignants (ici on peut lire depuis Excel ou avoir une liste prédéfinie)
-                    enseignants_list = [
-                        "Dr. MBANG Pierre", "Prof. NJOYA Marie", "M. FOMBA Jean",
-                        "Mme. KAMGA Sylvie", "Dr. TCHOUMI Paul", "Prof. NANA Claire"
-                    ]
+                    
                     enseignant = st.selectbox("👨‍🏫 Enseignant *", enseignants_df['Nom'].tolist() if not enseignants_df.empty else ["Enseignant Test"], key="enseignant_config")
                 
                 with col2:
@@ -662,7 +664,7 @@ def main():
                     etudiants_filtres = etudiants_df[etudiants_df['Centre'] == centre_appel]
                     
                     # Filtrer par concours (OR entre les concours sélectionnés)
-                    etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['Concours2'].isin(concours_appel)) | (etudiants_filtres['Concours3'].isin(concours_appel))]
+                    etudiants_filtres = etudiants_filtres[(etudiants_filtres['Concours1'].isin(concours_appel)) | (etudiants_filtres['concours2'].isin(concours_appel)) | (etudiants_filtres['concours3'].isin(concours_appel))]
                     etudiants_filtres=etudiants_filtres.sort_values(by=["Nom","Prénom"])
                     # Affichage du résumé
                     st.markdown("---")
@@ -840,26 +842,26 @@ def main():
                     # Boutons d'action
                     col_save, col_restart = st.columns(2)
                     
+                    enseignant
                     with col_save:
                         if st.button("💾 Enregistrer les Présences", type="primary", use_container_width=True):
-                            #presences_df = read_from_google_sheet("Présences")
+                            #presences_df = read_from_supabase("Présences")
                             success_count = 0
                             
                             for matricule, statut in st.session_state.presences_data.items():
                                 id_presence = len(presence_df) + success_count + 1
-                                data = [
-                                    id_presence, matricule, 
+                                data = [ matricule, 
                                     f"{config['cours']} - {config['intitule']}", 
                                     statut, 
                                     config['date'].strftime('%Y-%m-%d'), 
-                                    1  # idEnseignant par défaut (à améliorer)
+                                    id_center_dict[enseignant][0]  # idEnseignant par défaut (à améliorer)
                                 ]
                                 
-                                if save_to_google_sheet("Présences", data):
+                                if save_to_supabase("Présence", data):
                                     success_count += 1
                             
                             if success_count > 0:
-                                st.session_state.presence_df = read_from_google_sheet("Présences")
+                                st.session_state.presence_df = read_from_supabase("Présence")
                                 st.success(f"✅ {success_count} présences enregistrées avec succès !")
                                 # Reset après sauvegarde
                                 st.session_state.appel_started = False
@@ -899,7 +901,7 @@ def main():
                 min_absences = st.number_input("🎯 Minimum d'absences", min_value=1, max_value=10, value=2, key="min_abs")
             
             if st.button("📊 Analyser l'Absentéisme", type="primary"):
-                #presences_df = read_from_google_sheet("Présences")
+                #presences_df = read_from_supabase("Présences")
                 absent_students = get_absent_students(start_date_abs, end_date_abs, min_absences, presence_df, etudiants_df)
                 
                 if not absent_students.empty:
@@ -937,6 +939,6 @@ def main():
         # ====================== ONGLET DONNÉES ======================
         #Enregistrement des données de connexion 
         data_connection=[user,'Gestionnaire', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
-        save_to_google_sheet("Connexion", data_connection)
+        save_to_supabase("Connexion", data_connection)
 if __name__ == "__main__":
     main()

@@ -306,7 +306,6 @@ def main():
         versements_df=st.session_state.versements_df
         ventes_df=st.session_state.ventes_df
         presence_df=st.session_state.presence_df
-        presences_df=st.session_state.presences_df
         fiches_paie_df=st.session_state.fiches_paie_df
         Connect_df=st.session_state.Connect_df
 
@@ -322,16 +321,15 @@ def main():
         refresh=st.sidebar.button("Actualiser")
         if refresh:
             with st.spinner("Chargement des données...",show_time=True):
-                st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
-                st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
-                st.session_state.seances_df = read_from_google_sheet("Séances")
-                st.session_state.depenses_df = read_from_google_sheet("Dépenses")
-                st.session_state.versements_df = read_from_google_sheet("Versements")
-                st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
-                st.session_state.presence_df = read_from_google_sheet("Présences")
-                st.session_state.presences_df = read_from_google_sheet("Présences")
-                st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
-                st.session_state.Connect_df = read_from_google_sheet("Connexion")
+                st.session_state.etudiants_df = read_from_supabase("Etudiants")
+                st.session_state.enseignants_df = read_from_supabase("Enseignants")
+                st.session_state.seances_df = read_from_supabase("Séances")
+                st.session_state.depenses_df = read_from_supabase("Dépenses")
+                st.session_state.versements_df = read_from_supabase("Versement")
+                st.session_state.ventes_df = read_from_supabase("Bord")
+                st.session_state.presence_df = read_from_supabase("Présence")
+                st.session_state.fiches_paie_df = read_from_supabase("Fiches_Paie")
+                st.session_state.Connect_df = read_from_supabase("Connexion")
             #st.rerun()  # relance la page et recharge les données
 
         #etudiants_df, enseignants_df, seances_df, depenses_df, versements_df, ventes_df, presence_df, presences_df, fiches_paie_df, Connect_df=load_all_data()
@@ -365,6 +363,6 @@ def main():
     
         #Enregistrement des données de connexion 
         data_connection=[user,'Administrateur', datetime.now().strftime('%Y-%m-%d %H:%M:%S')] 
-        save_to_google_sheet("Connexion", data_connection)  
+        save_to_supabase("Connexion", data_connection)  
 if __name__ == "__main__":
     main()

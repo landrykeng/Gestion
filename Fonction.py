@@ -12,9 +12,11 @@ import gspread
 from google.oauth2.service_account import Credentials
 from functools import lru_cache
 import json
+from supabase import create_client, Client
+
 
 st.session_state.data_loaded = False
-version="online"  # "local" or "online"
+version="local"  # "local" or "online"
 if version=="online":
     SERVICE_ACCOUNT_FILE = st.secrets["gcp_service_account"]
 else:
@@ -31,7 +33,225 @@ _client = None
 _sheet = None
 _last_connection = 0
 CONNECTION_TIMEOUT = 300  # 5 minutes
-statut_df = pd.DataFrame({"ID": ["A+","A","A-","N+","N","N-"], "Honnoraire": [5000, 4500, 4000, 3500, 3000, 2500]})
+statut_df = pd.DataFrame({"ID": ["PA","A","B","C","D","E"], "Honnoraire": [5000, 4500, 4000, 3500, 3000,2500]})
+
+## IMPORTATION AVEC SUPABASE
+SUPABASE_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZ2t2d3ZjdHhtZXVkZXlnd3h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjg0NzAsImV4cCI6MjA2ODkwNDQ3MH0.n_bh3IZXDeKRqdPNIUC65ux8qHJJsa__f6YCtIMPvVU"
+SUPABASE_URL ="https://orgkvwvctxmeudeygwxt.supabase.co"
+
+
+@lru_cache(maxsize=1)
+def get_supabase_client() -> Client:
+    """Initialise et met en cache la connexion Supabase"""
+    try:
+        client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        return client
+    except Exception as e:
+        st.error(f"❌ Erreur de connexion à Supabase : {e}")
+        return None
+def read_from_supabase(table: str, limit: int = None) -> pd.DataFrame:
+    """
+    Lit les données d'une table Supabase et renvoie un DataFrame.
+    :param table: Nom de la table à lire
+    :param limit: Nombre max de lignes à lire (optionnel)
+    """
+    client = get_supabase_client()
+    if not client:
+        return pd.DataFrame()
+    
+    try:
+        query = client.table(table).select("*")
+        if limit:
+            query = query.limit(limit)
+        response = query.execute()
+
+        if response.data:
+            df = pd.DataFrame(response.data)
+            # Si aucune ligne retournée, renvoyer un DataFrame vide MAIS avec les en-têtes connus de la table
+            return df
+        else:
+            st.info(f"ℹ️ Aucune donnée trouvée dans '{table}'.")
+            table_columns = {
+                    "Connexion": ["id", "Utilisateur", "Statut", "Date"],
+                    "Dépenses": ["id", "MotifDepense", "Type", "Date", "CentreResponsable", "CentreBeneficiaire", "Montant"],
+                    "Enseignants": ["id", "Nom", "Prénom", "Matière", "Téléphone", "statut"],
+                    "Etudiants": ["Matricule", "Nom", "Prénom", "Sexe", "Concours1", "concours2", "concours3", "Téléphone", "Etablissement", "Centre", "Date_Arrivée"],
+                    "Fiches_Paie": ["id", "Nom", "Période", "Nb séances", "Honoraire", "Montant", "Prime", "Deduction retard", "Deduction absence", "Date"],
+                    "Présence": ["id", "Matricule", "Cours", "Statut", "Date", "idEnseignant", "Centre"],
+                    "Statut": ["id", "Honoraire"],
+                    "Séances": ["id", "Date", "Matière", "HeureArrivée", "HeureDepart", "Classe", "IntituléCours", "Centre", "idEnseignant", "Nb etudiant"],
+                    "Versement": ["id", "Date", "Motif", "Centre", "Montant", "idMatricule"],
+                    "Bord": ["id", "Bord", "NomAcheteur", "ContactAcheteur", "Nombre", "Montant", "Centre", "Date"]
+                }
+            cols = table_columns.get(table, [])
+            return pd.DataFrame(columns=cols)
+            
+    
+    except Exception as e:
+        st.error(f"❌ Erreur lecture table '{table}' : {e}")
+        return pd.DataFrame()
+
+def get_next_id(table: str, id_column: str = "id") -> int:
+    """
+    Récupère le prochain ID disponible pour une table
+    
+    Args:
+        table: Nom de la table
+        id_column: Nom de la colonne ID (par défaut "ID")
+    
+    Returns:
+        Prochain ID disponible
+    """
+    try:
+        client = get_supabase_client()
+        if not client:
+            return 1
+        
+        # Récupérer le maximum ID actuel
+        response = client.table(table).select(id_column).order(id_column, desc=True).limit(1).execute()
+        
+        if response.data and len(response.data) > 0:
+            max_id = response.data[0][id_column]
+            return int(max_id) + 1 if max_id else 1
+        else:
+            return 1
+            
+    except Exception as e:
+        st.warning(f"Impossible de récupérer le prochain ID : {e}")
+        return 1
+
+def save_to_supabase(table: str, data) -> bool:
+    """
+    Sauvegarde des données dans une table Supabase
+    L'ID est généré automatiquement (sauf pour la table Etudiants)
+    
+    Args:
+        table: Nom de la table
+        data: Liste de valeurs à insérer SANS l'ID (sauf pour Etudiants où le Matricule doit être fourni)
+              - Pour Connexion: [Utilisateur, Statut, Date]
+              - Pour Dépenses: [Motif, Type, Date, Montant]
+              - Pour Etudiants: [Matricule, Nom, Prénom, Sexe, Filière, ...]
+    
+    Returns:
+        True si succès, False sinon
+    """
+    try:
+        client = get_supabase_client()
+        if not client:
+            st.error("Impossible de se connecter à Supabase")
+            return False
+        
+        # Vérifier que data n'est pas vide
+        if not data or len(data) == 0:
+            st.warning("Liste vide, aucune donnée à sauvegarder")
+            return False
+        
+        # Mapping des colonnes par table et identification de la clé primaire
+        table_config = {
+            "Connexion": {
+                "columns": ["Utilisateur", "Statut", "Date"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Dépenses": {
+                "columns": ["MotifDepense", "Type", "Date","CentreResponsable","CentreBeneficiaire", "Montant"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Enseignants": {
+                "columns": ["Nom", "Prénom","Matière", "Téléphone", "statut"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Etudiants": {
+                "columns": ["Matricule", "Nom", "Prénom", "Sexe", "Concours1","concours2","concours3", "Téléphone", 
+                          "Etablissement","Centre", "Date_Arrivée"],
+                "primary_key": "Matricule",
+                "auto_id": False  # Le Matricule doit être fourni
+            },
+            "Fiches_Paie": {
+                "columns": ["Nom", "Période", "Nb séances", "Honoraire", 
+                          "Montant", "Prime", "Deduction retard", "Deduction absence","Date"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Présence": {
+                "columns": ["Matricule", "Cours", "Statut", "Date", "idEnseignant","Centre"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Statut": {
+                "columns": ["Honoraire"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Séances": {
+                "columns": ["Date", "Matière", "HeureArrivée", "HeureDepart", "Classe", 
+                          "IntituléCours","Centre", "idEnseignant", "Nb etudiant"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Versement": {
+                "columns": ["Date", "Motif","Centre", "Montant", "idMatricule"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True
+            },
+            "Bord": {
+                "columns": ["Bord", "NomAcheteur","ContactAcheteur","Nombre", "Montant", "Centre","Date"],  # Sans ID
+                "primary_key": "id",
+                "auto_id": True 
+            }
+        } 
+        
+        config = table_config.get(table)
+        if not config:
+            st.error(f"Table '{table}' non reconnue. Ajoutez-la au mapping.")
+            return False
+        
+        columns = config["columns"]
+        primary_key = config["primary_key"]
+        auto_id = config["auto_id"]
+        
+        # Vérifier que le nombre de valeurs correspond au nombre de colonnes
+        if len(data) != len(columns):
+            st.warning(f"Nombre de valeurs ({len(data)}) différent du nombre de colonnes attendues ({len(columns)})")
+            # Ajuster si nécessaire
+            if len(data) < len(columns):
+                data = data + [None] * (len(columns) - len(data))
+            else:
+                data = data[:len(columns)]
+        
+        # Créer le dictionnaire pour l'insertion
+        record = {}
+        
+        # Ajouter l'ID automatiquement si nécessaire
+        if auto_id:
+            next_id = get_next_id(table, primary_key)
+            record[primary_key] = next_id
+        
+        # Ajouter les autres colonnes
+        for i, col in enumerate(columns):
+            value = data[i]
+            # Convertir les valeurs vides en None
+            if value == '' or (isinstance(value, float) and pd.isna(value)):
+                value = None
+            record[col] = value
+        
+        # Insérer dans Supabase
+        response = client.table(table).insert(record).execute()
+        
+        # Vérifier le succès
+        if response.data:
+            return True
+        else:
+            st.warning("Opération effectuée mais aucune donnée retournée")
+            return True
+        
+    except Exception as e:
+        st.error(f"Erreur sauvegarde table '{table}' : {e}")
+        return False
+
+#==========================
 
 @lru_cache(maxsize=1)
 def get_credentials():
@@ -249,16 +469,15 @@ def load_all_data():
     """
     if "data_loaded" not in st.session_state or not st.session_state.data_loaded:
         with st.spinner("Chargement des données...",show_time=True):
-            st.session_state.etudiants_df = read_from_google_sheet("Étudiants")
-            st.session_state.enseignants_df = read_from_google_sheet("Enseignants")
-            st.session_state.seances_df = read_from_google_sheet("Séances")
-            st.session_state.depenses_df = read_from_google_sheet("Dépenses")
-            st.session_state.versements_df = read_from_google_sheet("Versements")
-            st.session_state.ventes_df = read_from_google_sheet("Ventes_Bords")
-            st.session_state.presence_df = read_from_google_sheet("Présences")
-            st.session_state.presences_df = read_from_google_sheet("Présences")
-            st.session_state.fiches_paie_df = read_from_google_sheet("Fiches_Paie")
-            st.session_state.Connect_df = read_from_google_sheet("Connexion")
+            st.session_state.etudiants_df = read_from_supabase("Etudiants")
+            st.session_state.enseignants_df = read_from_supabase("Enseignants")
+            st.session_state.seances_df = read_from_supabase("Séances")
+            st.session_state.depenses_df = read_from_supabase("Dépenses")
+            st.session_state.versements_df = read_from_supabase("Versement")
+            st.session_state.ventes_df = read_from_supabase("Bord")
+            st.session_state.presence_df = read_from_supabase("Présence")
+            st.session_state.fiches_paie_df = read_from_supabase("Fiches_Paie")
+            st.session_state.Connect_df = read_from_supabase("Connexion")
             st.session_state.data_loaded = True
         
 SHEETS = {
@@ -281,16 +500,16 @@ TYPE_DEPENSE_CHOICES = [
         "Accessoires", "Salaire"
     ]
 
-STATUT_ENSEIGNANT_CHOICES=["A+", "A", "A-","N","N-","N--"]
+STATUT_ENSEIGNANT_CHOICES=["PA", "A", "B","C","D"]
 ETABLISSEMENT=["Université Yde1","Université Yde2(SOA)","Université Dschang",
                 "Université Dla","Polytech Yde","Polytech Dla","Ecole Normale","Autre"]
 
-dict_honnoraire = {"A+":5000,
+dict_honnoraire = {"PA":5000,
                    "A":4500,
-                   "A-":4000,
-                   "N+":3500,
-                   "N":3500,
-                   "N-":2500}
+                   "B":4000,
+                   "C":3500,
+                   "D":3000,
+                   "E":2500}
     
 
 
